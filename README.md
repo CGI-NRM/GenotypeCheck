@@ -1,3 +1,2 @@
 # Check and match genotype data
-There is often a need to evaluate the results of studies that generate genotype data. This evaluation can be to identify potentially erroneous profiles using summary statistics, or to match genotype data with already available data. Here you can find tools that are useful for these procedures.
- 
+In this repo we host some tools that we use to evaluate genotype data that we generate at CGI. Most of the tools is geared towards the data set we generate in monitoring wildlife populations in Sweden. The focus is on making it simple to match new genotype data with data that are available in databases. 
