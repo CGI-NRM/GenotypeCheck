@@ -2,19 +2,29 @@
 % Please edit documentation in R/import_data.R
 \name{import_data}
 \alias{import_data}
-\title{Import and format data}
+\title{Import and format data
+To be replaced by the user chosing the relevant columns}
 \usage{
-import_data(file)
+import_data(file, index_column, additional_data, locus_names)
 }
 \arguments{
 \item{file}{The path to the file to be imported}
+
+\item{index_column}{The name or index of the column containing the indexes}
+
+\item{additional_data}{A vector with the names or indexes to the columns that contain the date, north, east, gender, and any preset id:s in that order.}
+
+\item{locus_names}{A vector with the name or indexes to the columns that contain the genotypes}
 }
 \value{
-A table with the relevant data
+A table with the relevant columns from the file
 }
 \description{
 Import and format data
+To be replaced by the user chosing the relevant columns
 }
 \examples{
+\dontrun{
 data <- import_data("raw_data.csv")
+}
 }
