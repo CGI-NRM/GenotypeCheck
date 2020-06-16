@@ -1,5 +1,6 @@
 library("shiny")
 library("zeallot")
+library("GenotypeCheck")
 
 # The standard locus names, mostly for faster testing
 locus_names <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
@@ -44,7 +45,7 @@ ui <- fluidPage(
       textInput(inputId = "northColumnName", label = "North Column", value = "Nord"),
       textInput(inputId = "eastColumnName", label = "East Column", value = "Ost"),
       textInput(inputId = "genderColumnName", label = "Gender Column", value = "Kon"),
-      textInput(inputId = "presetIndColumnName", label = "PresetIndividual Column (DOES NOTHING ATM)", value = ""),
+      textInput(inputId = "presetIndColumnName", label = "PresetIndividual Column", value = ""),
 
       # Select Locus Columns
       textInput(inputId = "locusColumnNames", label = "Locus Columns (separated by ',')", value = paste0(locus_names, collapse = "", sep = ",")),
@@ -98,7 +99,7 @@ server <- function(input, output, session) {
       # Read all of columns for the additional data from the ui
       additional_data <<- list(date = input$dateColumnName, north = input$northColumnName, east = input$eastColumnName, gender = input$genderColumnName, preset_ind = input$presetIndColumnName)
       # If the user does not specify column they get removed here to not have empty objects later that mess things up
-      additional_data <<- additional_data[is.na(additional_data)]
+      additional_data <<- additional_data[additional_data != ""]
 
       index_column <- input$indexColumnName
 

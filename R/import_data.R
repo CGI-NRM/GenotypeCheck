@@ -68,8 +68,9 @@ create_allelematch_dataset <- function(data, index_column, ignore_columns) {
 #' }
 create_search_data <- function(file_path, index_column, additional_data_columns, locus_columns, allele_mismatch) {
   data <- import_data(file_path, index_column = index_column, additional_data = additional_data_columns, locus_names = locus_columns)
-  am_data <- create_allelematch_dataset(data, index_column = index_column, ignore_columns = additional_data_columns)
+  rownames(data) <- pull(data, index_column)
 
+  am_data <- create_allelematch_dataset(data, index_column = index_column, ignore_columns = additional_data_columns)
   am_unique <- amUnique(am_data, alleleMismatch = allele_mismatch)
 
   ind <- 0
@@ -80,6 +81,13 @@ create_search_data <- function(file_path, index_column, additional_data_columns,
 
     search_data <- rbind(search_data, list(index = pair$match$index, multilocus = multilocus_combined, individ_id = rep(as.character(ind), length(pair$match$index))))
     ind <- ind + 1
+  }
+
+  if (!is.null(additional_data_columns$preset_ind)) {
+    for (ind in 1:length(search_data$index)) {
+      new_id <- pull(data[search_data$index[[ind]],], additional_data_columns$preset_ind)
+      search_data$individ_id[[ind]] <- new_id
+    }
   }
 
   list(search_data, am_unique$multipleMatches$index, list(index = am_unique$unclassified$index, multilocus = am_unique$unclassified$multilocus))
