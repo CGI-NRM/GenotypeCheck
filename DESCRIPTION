@@ -1,0 +1,13 @@
+Package: GenotypeCheck
+Version: 0.0.0.9000
+Title: Identify New Locus Data With Database Of Individuals
+Description: Categorizes sample data into groups of individuals and 
+Authors@R: person("Elias", "Lundell", email = "elilun03@gmail.com", role=c("aut", "cre"))
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a license
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.0
+Imports:
+  allelematch,
+  tidyverse
