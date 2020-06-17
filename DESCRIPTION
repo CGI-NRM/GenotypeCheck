@@ -12,4 +12,6 @@ Imports:
   allelematch,
   tidyverse,
   shiny,
-  zeallot
+  zeallot,
+  readxl,
+  readODS

@@ -1,5 +1,7 @@
-library(tidyverse)
+library(dplyr)
 library(allelematch)
+library(readxl)
+library(readODS)
 
 #' Import and format data
 #' @description To be replaced by the user chosing the relevant columns
@@ -17,8 +19,14 @@ library(allelematch)
 #' data <- import_data("raw_data.csv")
 #' }
 import_data <- function(file, index_column, additional_data, locus_names) {
-  # Read the data from the file
-  raw_data <- read.table(file = file, header = TRUE, sep = ",", na.strings = c("NA"))
+  # Read the data from the file depending on the file type
+  if (endsWith(file, ".xls") | endsWith(file, ".xlsx")) {
+    raw_data <- read_excel(path = file, sheet = 1, na = c("NA"), col_names = TRUE)
+  } else if (endsWith(file, "ods")) {
+    raw_data <- read_ods(path = file, col_names = TRUE, na = "NA")
+  } else {
+    raw_data <- read.table(file = file, header = TRUE, sep = ",", na.strings = c("NA"))
+  }
   # Select only the columns we are intressted in
   data <- raw_data %>%
     select(all_of(index_column), as.vector(unlist(additional_data)), all_of(locus_names))
@@ -59,7 +67,7 @@ create_allelematch_dataset <- function(data, index_column, ignore_columns) {
 #' @param locus_columns A vector with the names or indexes to the columns containing the locus data
 #' @param allele_mismatch A value for how many allele mismatchs are to be allowed and still count like a match
 #'
-#' @return A list with $index, $multilocus, and $individ_id.
+#' @return A list with the search_data, which is a list with $index, $multilocus, and $individ_id, a list with the $index of the samples that matched multiple individuals, and a list with the $index and $multilocus of the samples were unclassified.
 #' @export
 #'
 #' @examples
@@ -67,12 +75,15 @@ create_allelematch_dataset <- function(data, index_column, ignore_columns) {
 #' search_data <- create_search_data("data.csv")
 #' }
 create_search_data <- function(file_path, index_column, additional_data_columns, locus_columns, allele_mismatch) {
+  # Import the data
   data <- import_data(file_path, index_column = index_column, additional_data = additional_data_columns, locus_names = locus_columns)
   rownames(data) <- pull(data, index_column)
 
+  # Create allaematch dataset, ignore some meta-data as it can be read from the "data" above, the index (SEP) is the same
   am_data <- create_allelematch_dataset(data, index_column = index_column, ignore_columns = additional_data_columns)
   am_unique <- amUnique(am_data, alleleMismatch = allele_mismatch)
 
+  # Go through the data and create a large data.frame with all the prevoius samples, adding a column for the individ_id
   ind <- 0
   search_data <- data.frame(index = character(), multilocus = character(), individ_id = character())
 
@@ -83,14 +94,28 @@ create_search_data <- function(file_path, index_column, additional_data_columns,
     ind <- ind + 1
   }
 
+  # Add a empty column for the override data to be read from the file or created by the user later
+  search_data <- cbind(search_data, list(override_id = rep(NA, length(search_data$index))))
+
+  # If a override_id column is specified, write it to the new column
   if (!is.null(additional_data_columns$preset_ind)) {
     for (ind in 1:length(search_data$index)) {
       new_id <- pull(data[search_data$index[[ind]],], additional_data_columns$preset_ind)
-      search_data$individ_id[[ind]] <- new_id
+      search_data$override_id[[ind]] <- new_id
     }
   }
 
-  list(search_data, am_unique$multipleMatches$index, list(index = am_unique$unclassified$index, multilocus = am_unique$unclassified$multilocus))
+  # The multiple matches that have been handled by the user previously and is now in the file
+  multiple_matches_filter <- duplicated(search_data$index) & duplicated(search_data$override_id) & !is.na(search_data$override_id)
+
+  multiple_matches <- am_unique$multipleMatches$index
+  # Only keep the multiple matches indexes that have not been handled
+  multiple_matches <- multiple_matches[!(multiple_matches %in% search_data$index[multiple_matches_filter])]
+
+  search_data <- search_data[!multiple_matches_filter,]
+
+  # Return all we want, the data (meta-data), search_data (index, multilocus and the id to group them together)
+  list(data, search_data, multiple_matches, list(index = am_unique$unclassified$index, multilocus = am_unique$unclassified$multilocus))
 }
 
 #' Combine Multiple Locus and Assure Constant Width
@@ -108,7 +133,30 @@ create_search_data <- function(file_path, index_column, additional_data_columns,
 #' \dontrun{
 #' multilocus_combined <- apply(multilocus_matrix, 1, combine_multilocus)
 #' }
-#'
 combine_multilocus <- function(locus) {
-  paste0(formatC(as.numeric(locus), width = 3, flag = "0", format = "d"), collapse = "")
+  # Convert it to a number, add leading 0es if needed to reach length 3 and paste with collapse to create a long string
+  locus %>%
+    as.numeric() %>%
+    formatC(width = 3, flag = "0", format = "d") %>%
+    paste0(collapse = "", sep = " ")
+}
+
+#' Simplify the ID getting process
+#' @description Return the override id if there is one, otherwise return the individ_id
+#'
+#' @param row The row for which the id wishes to be taken
+#'
+#' @return The relevant id
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' id <- get_id(search_data[[17,]])
+#' }
+get_id <- function(row) {
+  # read the override id first
+  id <- row$override_id
+  # if the override id is NA, use the regular id instead
+  id[is.na(id)] <- row$individ_id[is.na(id)]
+  id
 }

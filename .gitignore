@@ -42,5 +42,5 @@ vignettes/*.pdf
 .~lock*
 
 # R Project
-*.Rproj
+# *.Rproj
 .Rbuildignore
