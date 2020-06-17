@@ -37,3 +37,10 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Lock files
+.~lock*
+
+# R Project
+*.Rproj
+.Rbuildignore
