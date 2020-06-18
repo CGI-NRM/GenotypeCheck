@@ -136,7 +136,7 @@ ui <- shiny::fluidPage(
                           # If multiple is choosen, open those options
                           shiny::conditionalPanel(condition = "input.new_data_mode == 'multiple'",
 
-                                            shiny::h4("Using column-names from the panel on the right, make sure they match the given file."),
+                                            shiny::h5("Using column-names from the panel on the right, make sure they match the given file."),
                                             # Allow user to load a file with the data
                                             shiny::fileInput(inputId = "new_data_file", label = "Choose Data File",
                                                   multiple = FALSE,
@@ -144,8 +144,12 @@ ui <- shiny::fluidPage(
                                                       "text/comma-separated-values,text/plain",
                                                       ".csv", ".xls", ".xlsx", ".ods")),
                                            ),
+                          shiny::tags$hr(),
+                          # How many mismatchs to allow when mathcing new data to the rest of the dataset
+                          shiny::textInput(inputId = "new_data_mismatch", label = "Mismatch For New Data"),
+                          # Load the file or strings into data and compare with the dataset
                           shiny::actionButton(inputId = "search_new_data", label = "Match New Data To Dataset"),
-                          shiny::textInput(inputId = "new_data_ids", label = "Ids for new data: "),
+                          shiny::tags$hr(),
                           )
       )
     )
@@ -268,7 +272,9 @@ server <- function(input, output, session) {
 
       # Render all samples that are part of the process to choose
       output$multipleMatchedSingle <- DT::renderDataTable({
-        search_data[search_data_filter,]
+        DT::datatable(search_data[search_data_filter,]) %>%
+          # Highlighting the entries that are the indexes we are handling
+          DT::formatStyle(columns = "index", target = "row", backgroundColor = DT::styleEqual(levels = c(showing_index), values = c("yellow"), default = NULL))
       })
 
       # If the user have specified map coordinates, continue
