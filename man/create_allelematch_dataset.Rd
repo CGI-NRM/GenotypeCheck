@@ -2,17 +2,12 @@
 % Please edit documentation in R/import_data.R
 \name{create_allelematch_dataset}
 \alias{create_allelematch_dataset}
-\title{Convert The Data to a Allelematch Dataset
-To be rewritten to take a table with only index and locus data, split in the \code{\link{import_data}} function.
-Now ignores the irrelevant data for this step, can be connected by their index later. A wrapper for the
-\code{\link{amDataset}} function.}
+\title{Convert The Data to a Allelematch Dataset}
 \usage{
-create_allelematch_dataset(data, index_column, ignore_columns)
+create_allelematch_dataset(data, ignore_columns)
 }
 \arguments{
 \item{data}{The relevant data that has been imported}
-
-\item{index_column}{The name or indexe to the column that contain the index of the data}
 
 \item{ignore_columns}{A vector with the names or indexes to the columns that are to be ignored by the 'allelematch' packet. These are the date, nord, east, gender and preset individual, in that order. TODO: Remove the preset individual, it should be used earlier.}
 }
@@ -20,7 +15,6 @@ create_allelematch_dataset(data, index_column, ignore_columns)
 A allelematch dataset with the relevant index and locus column
 }
 \description{
-Convert The Data to a Allelematch Dataset
 To be rewritten to take a table with only index and locus data, split in the \code{\link{import_data}} function.
 Now ignores the irrelevant data for this step, can be connected by their index later. A wrapper for the
 \code{\link{amDataset}} function.

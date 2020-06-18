@@ -1,10 +1,10 @@
-library("shiny")
-library("DT")
-library("zeallot")
-library("leaflet")
-library("rgdal")
+library(shiny)
+library(DT)
+library(zeallot)
+library(leaflet)
+library(rgdal)
+#library(GenotypeCheck)
 #source("import_data.R")
-#library("GenotypeCheck")
 
 # The standard locus names, mostly for faster testing
 locus_names <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
@@ -29,12 +29,11 @@ ui <- fluidPage(
     sidebarPanel(width = 3,
 
       # Input: Select a file
-      fileInput("file1", "Choose CSV File",
+      fileInput("file1", "Choose Data File",
                 multiple = FALSE,
                 accept = c("text/csv",
                            "text/comma-separated-values,text/plain",
                            ".csv", ".xls", ".xlsx", ".ods")),
-
 
       # Input: Checkbox if file has header
       checkboxInput("header", "Header", TRUE),
@@ -43,6 +42,8 @@ ui <- fluidPage(
       # Select allele mismatch value
       h4("TODO::: Show amUniqueProfile To User If a button is clicked"),
       textInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = "3"),
+      plotOutput(outputId = "allelematchProfilePlot"),
+      actionButton(inputId = "generateAllelematchProfile", "Generate Mismatch Plot"),
 
       h4("Type the column name of the specified columns."),
       h5("If header is deseleted, type the indexes of the columns."),
@@ -124,7 +125,14 @@ server <- function(input, output, session) {
   multiple_matches <- list(index = character())
   unclassified <- list(index = character(), multilocus = character())
 
-  data <- list()
+  data <- NA
+  am_data <- NA
+
+  observeEvent(input$file1, {
+    req(input$file1)
+
+    load_data()
+  })
 
   # Run allelematch and all GenotypeChecks the surrounding code when the click of the button
   observeEvent(input$groupIndividuals, {
@@ -133,6 +141,20 @@ server <- function(input, output, session) {
   })
 
   groupIndividuals <- function() {
+    req(as.numeric(input$alleleMismatchValue))
+
+    load_data()
+
+    # Unpack the different data returned by our wrapper of allelematch into temp variables
+    c(search_data_temp, multiple_matches_temp, unclassified_temp) %<-% GenotypeCheck::create_search_data(data, am_data, as.numeric(input$alleleMismatchValue))
+
+    # Change the session (server) data from the temp data
+    search_data <<- search_data_temp
+    multiple_matches <<- multiple_matches_temp
+    unclassified <<- unclassified_temp
+  }
+
+  load_data <- function() {
     req(input$file1)
 
     # Read the locus data from the ui
@@ -152,14 +174,11 @@ server <- function(input, output, session) {
       index_column <- as.numeric(index_column)
     }
 
-    # Unpack the different data returned by our wrapper of allelematch into temp variables
-    c(data_temp, search_data_temp, multiple_matches_temp, unclassified_temp) %<-% create_search_data(input$file1$datapath, index_column, additional_data, locus_columns, as.numeric(input$alleleMismatchValue))
+    # Load the data, this will be the meta data
+    data <<- GenotypeCheck::import_data(input$file1$datapath, index_column = index_column, additional_data = additional_data, locus_names = locus_columns)
 
-    # Change the session (server) data from the temp data
-    search_data <<- search_data_temp
-    multiple_matches <<- multiple_matches_temp
-    unclassified <<- unclassified_temp
-    data <<- data_temp
+    # Create allaematch dataset, ignore some meta-data as it can be read from the "data" above, the index (SEP) is the same
+    am_data <<- GenotypeCheck::create_allelematch_dataset(data, ignore_columns = names(additional_data))
   }
 
   update_output_preprocess_data <- function() {
@@ -225,8 +244,8 @@ server <- function(input, output, session) {
         # Extract the long and lat from the data
         # The data have user defined names for the columns, hence the pull with the additional_data which is the link between the user
         # defined column-names and to us known names (north, east etc)
-        coords <- list(lng = pull(data[search_data$index[search_data_filter],], additional_data$east),
-                       lat = pull(data[search_data$index[search_data_filter],], additional_data$north))
+        coords <- list(lng = data[search_data$index[search_data_filter],"east"],
+                       lat = data[search_data$index[search_data_filter],"north"])
         # Create a spatialpointsdataframe with the coordinates, empty meta-data and the input GPS system
         p1 <- SpatialPointsDataFrame(coords, data = data.frame(list(temp = rep(NA, length(search_data_filter[search_data_filter == TRUE])))), proj4string = SWEREF99)
         # Convert to WGS84 to render to the map and extract the coordinates
@@ -234,32 +253,32 @@ server <- function(input, output, session) {
           coordinates()
 
         # Render to the map
-        output$multiMatchMap <- renderLeaflet({
+        output$multiMatchMap <- leaflet::renderLeaflet({
           # Get the id:s for all points to be renderer
           ids <- get_id(search_data[search_data_filter,])
           # Change the id for the ones that have multiple ids. They have the same location and will be placed on top of each other
           ids[search_data$index[search_data_filter] %in% multiple_matches] <- "Multiple"
           # Read the dates for the relevant samples from the meta-data
-          dates <- pull(data[search_data$index[search_data_filter],], additional_data$date)
+          dates <- data[search_data$index[search_data_filter],"date"]
           # Create all labels with the information we want to display
           label <- paste0("Index: ", search_data$index[search_data_filter], " ID: ", ids, " Date: ", dates)
 
           # Render the map with leaflet and att markers
-          leaflet() %>%
+          leaflet::leaflet() %>%
             # Get the map from openstreetmap
-            addProviderTiles(provider = providers$OpenStreetMap,
-                             options = providerTileOptions(noWrap = TRUE)) %>%
+            addProviderTiles(provider = leaflet::providers$OpenStreetMap,
+                             options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
             # Add popups (take alot of space but gives all information, can be closed) - uses the label with the information created earlier
-            addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = label, options = popupOptions(closeButton = TRUE)) %>%
+            leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = label, options = popupOptions(closeButton = TRUE)) %>%
             # Add markers that show the information both on click and on hover, cant disapear
-            addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = label, popup = label)
+            leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = label, popup = label)
         })
       }
     }
   })
 
   # Observe if user clicks the button to change the override id of the sample in question (that have been multimatched)
-  observeEvent(input$multipleMatchFixConfirm, {
+  shiny::observeEvent(input$multipleMatchFixConfirm, {
     # Make sure the user has written a new id
     req(input$multipleMatchFix)
 
@@ -274,12 +293,19 @@ server <- function(input, output, session) {
     search_data$override_id[search_data$index == showing_index] <<- input$multipleMatchFix
     # Set every sample that is in the same group to have a override id, maybe not necessary but to ensure the order generated by
     # allelelmatch doesnt change and would therefor place the user "controlled" one in a then different group
-    search_data$override_id[get_id(search_data) == input$multipleMatchFix] <<- input$multipleMatchFix
+    search_data$override_id[get_id(search_data) == input$multipleMatchFix & !(search_data$index %in% multiple_matches)] <<- input$multipleMatchFix
 
     # Update the visual information, the big table and the count of multimatches
     update_output_preprocess_data()
     # Reset the chosen multimatch index, the conditional panel will disapear until the user chooses a new sample that have been multimatched to handle
     updateTextInput(session, "multipleMatchIndex", value = "")
+  })
+
+  shiny::observeEvent(input$generateAllelematchProfile, {
+    output$allelematchProfilePlot <- shiny::renderPlot({
+      plot_data <- GenotypeCheck::generate_allelemtach_profile_plot(am_data)
+      print(plot_data)
+    })
   })
 }
 

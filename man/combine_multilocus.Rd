@@ -2,7 +2,7 @@
 % Please edit documentation in R/import_data.R
 \name{combine_multilocus}
 \alias{combine_multilocus}
-\title{Title}
+\title{Combine Multiple Locus and Assure Constant Width}
 \usage{
 combine_multilocus(locus)
 }
@@ -13,7 +13,7 @@ combine_multilocus(locus)
 A long string with all locus combined, padding zeros making ever locus three characters long.
 }
 \description{
-Title
+Combine Multiple Locus and Assure Constant Width
 }
 \examples{
 \dontrun{
@@ -23,5 +23,4 @@ multilocus_combined <- combine_multilocus(multilocus)
 \dontrun{
 multilocus_combined <- apply(multilocus_matrix, 1, combine_multilocus)
 }
-
 }

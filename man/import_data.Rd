@@ -2,8 +2,7 @@
 % Please edit documentation in R/import_data.R
 \name{import_data}
 \alias{import_data}
-\title{Import and format data
-To be replaced by the user chosing the relevant columns}
+\title{Import and format data}
 \usage{
 import_data(file, index_column, additional_data, locus_names)
 }
@@ -20,7 +19,6 @@ import_data(file, index_column, additional_data, locus_names)
 A table with the relevant columns from the file
 }
 \description{
-Import and format data
 To be replaced by the user chosing the relevant columns
 }
 \examples{

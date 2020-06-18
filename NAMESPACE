@@ -3,4 +3,6 @@
 export(combine_multilocus)
 export(create_allelematch_dataset)
 export(create_search_data)
+export(generate_allelemtach_profile_plot)
+export(get_id)
 export(import_data)

@@ -21,16 +21,21 @@ library(readODS)
 import_data <- function(file, index_column, additional_data, locus_names) {
   # Read the data from the file depending on the file type
   if (endsWith(file, ".xls") | endsWith(file, ".xlsx")) {
-    raw_data <- read_excel(path = file, sheet = 1, na = c("NA"), col_names = TRUE)
+    raw_data <- readxl::read_excel(path = file, sheet = 1, na = c("NA"), col_names = TRUE)
   } else if (endsWith(file, "ods")) {
-    raw_data <- read_ods(path = file, col_names = TRUE, na = "NA")
+    raw_data <- readODS::read_ods(path = file, col_names = TRUE, na = "NA")
   } else {
     raw_data <- read.table(file = file, header = TRUE, sep = ",", na.strings = c("NA"))
   }
   # Select only the columns we are intressted in
   data <- raw_data %>%
     select(all_of(index_column), as.vector(unlist(additional_data)), all_of(locus_names))
-  # Return the resulting table
+
+  # Rename all column to be the names we know (index, north, south, gender etc) insted of the colmn names from the file
+  colnames(data) <- c("index", names(additional_data), locus_names)
+  # Make the rows indexable by index
+  rownames(data) <- data$index
+  # Return the table
   data
 }
 
@@ -41,7 +46,6 @@ import_data <- function(file, index_column, additional_data, locus_names) {
 #' \code{\link{amDataset}} function.
 #'
 #' @param data The relevant data that has been imported
-#' @param index_column The name or indexe to the column that contain the index of the data
 #' @param ignore_columns A vector with the names or indexes to the columns that are to be ignored by the 'allelematch' packet. These are the date, nord, east, gender and preset individual, in that order. TODO: Remove the preset individual, it should be used earlier.
 #'
 #' @return A allelematch dataset with the relevant index and locus column
@@ -51,9 +55,9 @@ import_data <- function(file, index_column, additional_data, locus_names) {
 #' \dontrun{
 #' am_data <- create_allelematch_dataset(data)
 #' }
-create_allelematch_dataset <- function(data, index_column, ignore_columns) {
+create_allelematch_dataset <- function(data, ignore_columns) {
   # Create the allelematch dataset
-  am_data <- allelematch::amDataset(data, indexColumn = index_column, ignoreColumn = as.vector(unlist(ignore_columns)), missingCode = "000")
+  am_data <- allelematch::amDataset(data, indexColumn = "index", ignoreColumn = as.vector(unlist(ignore_columns)), missingCode = "000")
   # Retrun the allelematch dataset
   am_data
 }
@@ -61,10 +65,8 @@ create_allelematch_dataset <- function(data, index_column, ignore_columns) {
 #' Load Data and Group Into Individuals
 #' @description TODO: Keep the multimatch data
 #'
-#' @param file_path A path to the csv file
-#' @param index_column The name or index to the colmn containing the indexes for the data
-#' @param additional_data_columns A named list with the names or indexes to the date, north, east, gender and preset_ind colmns.
-#' @param locus_columns A vector with the names or indexes to the columns containing the locus data
+#' @param data A dateframe with index, all meta-data and locus
+#' @param am_data An allelematch dataset, converted from the data containing the index and locus
 #' @param allele_mismatch A value for how many allele mismatchs are to be allowed and still count like a match
 #'
 #' @return A list with the search_data, which is a list with $index, $multilocus, and $individ_id, a list with the $index of the samples that matched multiple individuals, and a list with the $index and $multilocus of the samples were unclassified.
@@ -74,14 +76,10 @@ create_allelematch_dataset <- function(data, index_column, ignore_columns) {
 #' \dontrun{
 #' search_data <- create_search_data("data.csv")
 #' }
-create_search_data <- function(file_path, index_column, additional_data_columns, locus_columns, allele_mismatch) {
-  # Import the data
-  data <- import_data(file_path, index_column = index_column, additional_data = additional_data_columns, locus_names = locus_columns)
-  rownames(data) <- pull(data, index_column)
-
-  # Create allaematch dataset, ignore some meta-data as it can be read from the "data" above, the index (SEP) is the same
-  am_data <- create_allelematch_dataset(data, index_column = index_column, ignore_columns = additional_data_columns)
-  am_unique <- amUnique(am_data, alleleMismatch = allele_mismatch)
+#create_search_data <- function(file_path, index_column, additional_data_columns, locus_columns, allele_mismatch) {
+create_search_data <- function(data, am_data, allele_mismatch) {
+  # Group the samples together to form individuals
+  am_unique <- allelematch::amUnique(am_data, alleleMismatch = allele_mismatch)
 
   # Go through the data and create a large data.frame with all the prevoius samples, adding a column for the individ_id
   ind <- 0
@@ -98,9 +96,9 @@ create_search_data <- function(file_path, index_column, additional_data_columns,
   search_data <- cbind(search_data, list(override_id = rep(NA, length(search_data$index))))
 
   # If a override_id column is specified, write it to the new column
-  if (!is.null(additional_data_columns$preset_ind)) {
+  if (!is.null(data$preset_ind)) {
     for (ind in 1:length(search_data$index)) {
-      new_id <- pull(data[search_data$index[[ind]],], additional_data_columns$preset_ind)
+      new_id <- data[search_data$index[[ind]],"preset_ind"]
       search_data$override_id[[ind]] <- new_id
     }
   }
@@ -115,7 +113,7 @@ create_search_data <- function(file_path, index_column, additional_data_columns,
   search_data <- search_data[!multiple_matches_filter,]
 
   # Return all we want, the data (meta-data), search_data (index, multilocus and the id to group them together)
-  list(data, search_data, multiple_matches, list(index = am_unique$unclassified$index, multilocus = am_unique$unclassified$multilocus))
+  list(search_data, multiple_matches, list(index = am_unique$unclassified$index, multilocus = am_unique$unclassified$multilocus))
 }
 
 #' Combine Multiple Locus and Assure Constant Width
@@ -151,6 +149,7 @@ combine_multilocus <- function(locus) {
 #'
 #' @examples
 #' \dontrun{
+#' # Get the id for the sample at the 17th row
 #' id <- get_id(search_data[[17,]])
 #' }
 get_id <- function(row) {
@@ -159,4 +158,24 @@ get_id <- function(row) {
   # if the override id is NA, use the regular id instead
   id[is.na(id)] <- row$individ_id[is.na(id)]
   id
+}
+
+#' Generate Allelematch Profile Plot
+#'
+#' @param am_dataset A allelematch dataset to examine the optimal mismatch value for
+#'
+#' @return The plotdata to show the user what the program thinks is the optimal mismatch value
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' library(shiny)
+#'
+#' output$plot <- renderPlot({
+#'   generate_allelematch_plot(am_data)
+#' })
+#' }
+generate_allelemtach_profile_plot <- function(am_dataset) {
+  # Generate the plot
+  allelematch::amUniqueProfile(am_dataset, doPlot = TRUE)
 }

@@ -2,30 +2,21 @@
 % Please edit documentation in R/import_data.R
 \name{create_search_data}
 \alias{create_search_data}
-\title{Load Data and Group Into Individuals
-TODO: Keep the multimatch data}
+\title{Load Data and Group Into Individuals}
 \usage{
-create_search_data(
-  file_path,
-  index_column,
-  additional_data_columns,
-  locus_columns
-)
+create_search_data(data, am_data, allele_mismatch)
 }
 \arguments{
-\item{file_path}{A path to the csv file}
+\item{data}{A dateframe with index, all meta-data and locus}
 
-\item{index_column}{The name or index to the colmn containing the indexes for the data}
+\item{am_data}{An allelematch dataset, converted from the data containing the index and locus}
 
-\item{additional_data_columns}{A named list with the names or indexes to the date, north, east, gender and preset_ind colmns.}
-
-\item{locus_columns}{A vector with the names or indexes to the columns containing the locus data}
+\item{allele_mismatch}{A value for how many allele mismatchs are to be allowed and still count like a match}
 }
 \value{
-A list with $index, $multilocus, and $individ_id.
+A list with the search_data, which is a list with $index, $multilocus, and $individ_id, a list with the $index of the samples that matched multiple individuals, and a list with the $index and $multilocus of the samples were unclassified.
 }
 \description{
-Load Data and Group Into Individuals
 TODO: Keep the multimatch data
 }
 \examples{
