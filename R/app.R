@@ -17,33 +17,37 @@ WGS84 <- CRS("+init=epsg:4326")
 UTM32N <- CRS("+init=epsg:32632")
 
 # Define UI
-ui <- fluidPage(
+ui <- shiny::fluidPage(
 
   # App title
-  titlePanel("Match Genotype"),
+  shiny::titlePanel("Match Genotype"),
 
   # Sidebar layout with input and output definitions
-  sidebarLayout(
+  shiny::sidebarLayout(
 
     # Sidebar panel for inputs
-    sidebarPanel(width = 3,
+    shiny::sidebarPanel(width = 3,
 
       # Input: Select a file
-      fileInput("file1", "Choose Data File",
+      shiny::fileInput("file1", "Choose Data File",
                 multiple = FALSE,
                 accept = c("text/csv",
                            "text/comma-separated-values,text/plain",
                            ".csv", ".xls", ".xlsx", ".ods")),
 
       # Input: Checkbox if file has header
-      checkboxInput("header", "Header", TRUE),
+      shiny::checkboxInput("header", "Header", TRUE),
 
-      tags$hr(),
+      shiny::tags$hr(),
       # Select allele mismatch value
-      h4("TODO::: Show amUniqueProfile To User If a button is clicked"),
-      textInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = "3"),
-      plotOutput(outputId = "allelematchProfilePlot"),
-      actionButton(inputId = "generateAllelematchProfile", "Generate Mismatch Plot"),
+      shiny::textInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = "3"),
+      # If the user asks for the plot, generate it and show it
+      shiny::conditionalPanel(condition = "input.generateAllelematchProfile >= 1",
+        plotOutput(outputId = "allelematchProfilePlot"),
+      ),
+      shiny::conditionalPanel(condition = "input.generateAllelematchProfile == 0",
+        actionButton(inputId = "generateAllelematchProfile", "Generate Mismatch Plot"),
+      ),
 
       h4("Type the column name of the specified columns."),
       h5("If header is deseleted, type the indexes of the columns."),
@@ -70,47 +74,80 @@ ui <- fluidPage(
       # Display some result data to the user
       textOutput(outputId = "amtMultipleMatches"),
       textOutput(outputId = "amtUnclassified"),
-
-      div(h4("Handle Multiple Matches")),
-
-      textInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", placeholder = "tex 2"),
-      DT::dataTableOutput("multipleMatchesTable"),
-
-      # TODO:: Allow the user to handle these (similar to matching new data)
-      div(h4("Handle Unclassified Samples")),
-
-      DT::dataTableOutput("unclassifiedTable"),
-
     ),
 
     # Main panel for displaying outputs
-    mainPanel(
-      # Panel for handeling multiple matched data, will probably be similar to the panel for matching new data
-      conditionalPanel("input.multipleMatchIndex != ''",
-                       # Showing Multimatch data for SEP123123 <-- Example
-                       h4(textOutput("multiMatchDataFor")),
-                       h5("The sample matched the following individuals: "),
-                       # Desired: map beside data, now it jumps down because of size, not that important
-                       sidebarLayout(
-                         sidebarPanel = sidebarPanel(width = 9,
-                          # Render the ones that were similar
-                           DT::dataTableOutput("multipleMatchedSingle"),
-                         ),
-                         mainPanel = mainPanel(
-                           # render the map for the user to have all data when deciding which individual to add it to
-                           leafletOutput(outputId = "multiMatchMap"),
-                         ),
-                       ),
-                       # User choose and add to a group of samples/individual - information
-                       h5("If this ID is one of the listed above the sample will be added to that group of sample/individual, if not, the sample will create a new individual IF the new ID does not already exist, make sure it is unique if that is the desired action."),
-                       # Text box to type new id, either create new group or create a override id for every sample in that group
-                       textInput(inputId = "multipleMatchFix", label = "Set ID/Individual to group: "),
-                       actionButton(inputId = "multipleMatchFixConfirm", label = "Confirm/Save to data"),
-                       tags$hr(),
-                       ),
+    mainPanel = shiny::mainPanel(
+      shiny::tabsetPanel(id = "rightOperationTabset",
+        shiny::tabPanel(title = "Dataset", value = "dataset",
+              # Output: Data file
+              DT::dataTableOutput("contents")
+                        ),
+        shiny::tabPanel(title = "Handle Multiple Matches And Unclassified Samples", value = "handle_multiple_matches_and_unclassified_samples",
+              # Allow the user to select and handle all of the multiple matches that occured
+              div(h4("Handle Multiple Matches")),
 
-      # Output: Data file
-      DT::dataTableOutput("contents")
+              textInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", placeholder = "tex 2"),
+              DT::dataTableOutput("multipleMatchesTable"),
+
+              # TODO:: Allow the user to handle these (similar to matching new data)
+              div(h4("Handle Unclassified Samples")),
+
+              DT::dataTableOutput("unclassifiedTable"),
+
+              # Panel for handeling multiple matched data, will probably be similar to the panel for matching new data
+              conditionalPanel("input.multipleMatchIndex != ''",
+                               # "Showing Multimatch data for SEP123123" <-- Example
+                               h4(textOutput("multiMatchDataFor")),
+                               h5("The sample matched the following individuals: "),
+                               # Desired: map beside data, now it jumps down because of size, not that important
+                               sidebarLayout(
+                                 sidebarPanel = sidebarPanel(width = 9,
+                                  # Render the ones that were similar
+                                   DT::dataTableOutput("multipleMatchedSingle"),
+                                 ),
+                                 mainPanel = mainPanel(
+                                   # render the map for the user to have all data when deciding which individual to add it to
+                                   leafletOutput(outputId = "multiMatchMap"),
+                                 ),
+                               ),
+                               # User choose and add to a group of samples/individual - information
+                               h5("If this ID is one of the listed above the sample will be added to that group of sample/individual, if not, the sample will create a new individual IF the new ID does not already exist, make sure it is unique if that is the desired action."),
+                               # Text box to type new id, either create new group or create a override id for every sample in that group
+                               textInput(inputId = "multipleMatchFix", label = "Set ID/Individual to group: "),
+                               actionButton(inputId = "multipleMatchFixConfirm", label = "Confirm/Save to data"),
+                               tags$hr(),
+                               ),
+                  ),
+        # Tab for loading and testing new data
+          shiny::tabPanel(title = "Test New Data", value = "test_new_data",
+                          # Choose wheter to write a single sample or load a file with multiple
+                          shiny::radioButtons(inputId = "new_data_mode", label = "Add/Test new data by: ",
+                                              choices = c(Single = "single", Multiple = "multiple"), selected = "single"),
+                          # Show options for loading a single data point
+                          shiny::conditionalPanel(condition = "input.new_data_mode == 'single'",
+                                                  shiny::textInput(inputId = "new_data_index", label = "Index: "),
+                                                  shiny::dateInput(inputId = "new_data_date", label = "Date: "),
+                                                  shiny::textInput(inputId = "new_data_nornt", label = "North: "),
+                                                  shiny::textInput(inputId = "new_data_east", label = "East: "),
+                                                  shiny::textInput(inputId = "new_data_gender", label = "Gender: "),
+                                                  shiny::textInput(inputId = "new_data_locus", label = "Locus (separated by ' '):")
+                                           ),
+                          # If multiple is choosen, open those options
+                          shiny::conditionalPanel(condition = "input.new_data_mode == 'multiple'",
+
+                                            shiny::h4("Using column-names from the panel on the right, make sure they match the given file."),
+                                            # Allow user to load a file with the data
+                                            shiny::fileInput(inputId = "new_data_file", label = "Choose Data File",
+                                                  multiple = FALSE,
+                                                  accept = c("text/csv",
+                                                      "text/comma-separated-values,text/plain",
+                                                      ".csv", ".xls", ".xlsx", ".ods")),
+                                           ),
+                          shiny::actionButton(inputId = "search_new_data", label = "Match New Data To Dataset"),
+                          shiny::textInput(inputId = "new_data_ids", label = "Ids for new data: "),
+                          )
+      )
     )
   )
 )
@@ -128,12 +165,6 @@ server <- function(input, output, session) {
   data <- NA
   am_data <- NA
 
-  observeEvent(input$file1, {
-    req(input$file1)
-
-    load_data()
-  })
-
   # Run allelematch and all GenotypeChecks the surrounding code when the click of the button
   observeEvent(input$groupIndividuals, {
     groupIndividuals()
@@ -143,7 +174,8 @@ server <- function(input, output, session) {
   groupIndividuals <- function() {
     req(as.numeric(input$alleleMismatchValue))
 
-    load_data()
+    # Reload the data incase the colmn-names have changed
+    load_main_data()
 
     # Unpack the different data returned by our wrapper of allelematch into temp variables
     c(search_data_temp, multiple_matches_temp, unclassified_temp) %<-% GenotypeCheck::create_search_data(data, am_data, as.numeric(input$alleleMismatchValue))
@@ -154,7 +186,7 @@ server <- function(input, output, session) {
     unclassified <<- unclassified_temp
   }
 
-  load_data <- function() {
+  load_main_data <- function() {
     req(input$file1)
 
     # Read the locus data from the ui
@@ -284,27 +316,28 @@ server <- function(input, output, session) {
 
     # Figure out the search_data index, (SEP index)
     showing_index <- multiple_matches[[as.numeric(input$multipleMatchIndex)]]
-    # Remove the sample from the list of samples that have multiple matches, it has been corrected by the user
-    multiple_matches <<- multiple_matches[multiple_matches != showing_index]
-    # Remove all duplicated of the specific sample, the order doesnt matter as override id is the important parameter for the id
-    # We can remove the one with the correct id and set the override id of another without problem
-    search_data <<- search_data[!(search_data$index == showing_index & duplicated(search_data$index)),]
-    # Set the sample (now no duplicates, only one left) override id to be the id specified by the user
-    search_data$override_id[search_data$index == showing_index] <<- input$multipleMatchFix
-    # Set every sample that is in the same group to have a override id, maybe not necessary but to ensure the order generated by
-    # allelelmatch doesnt change and would therefor place the user "controlled" one in a then different group
-    search_data$override_id[get_id(search_data) == input$multipleMatchFix & !(search_data$index %in% multiple_matches)] <<- input$multipleMatchFix
+
+    # Make the change in the data structures
+    c(search_data_temp, multimatch_data_temp) %<-% GenotypeCheck::handle_multimatch(search_data, multiple_matches, showing_index, input$multipleMatchFix)
+    search_data <<- search_data_temp
+    multiple_matches <<- multimatch_data_temp
 
     # Update the visual information, the big table and the count of multimatches
     update_output_preprocess_data()
     # Reset the chosen multimatch index, the conditional panel will disapear until the user chooses a new sample that have been multimatched to handle
+    updateTextInput(session, "multipleMatchFix", value = "")
     updateTextInput(session, "multipleMatchIndex", value = "")
   })
 
   shiny::observeEvent(input$generateAllelematchProfile, {
+    req(input$file1)
+
+    # Reload the data incase teh colmnnames have changed
+    load_main_data()
+
+    # Render the plot to the ui
     output$allelematchProfilePlot <- shiny::renderPlot({
-      plot_data <- GenotypeCheck::generate_allelemtach_profile_plot(am_data)
-      print(plot_data)
+      GenotypeCheck::generate_allelemtach_profile_plot(am_data)
     })
   })
 }
