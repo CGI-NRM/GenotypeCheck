@@ -40,17 +40,14 @@ ui <- shiny::fluidPage(
 
       shiny::tags$hr(),
       # Select allele mismatch value
-      shiny::textInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = "3"),
+      shiny::numericInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = 3, min = 0, step = 1),
       # If the user asks for the plot, generate it and show it
       shiny::conditionalPanel(condition = "input.generateAllelematchProfile >= 1",
         plotOutput(outputId = "allelematchProfilePlot"),
       ),
-      shiny::conditionalPanel(condition = "input.generateAllelematchProfile == 0",
-        actionButton(inputId = "generateAllelematchProfile", "Generate Mismatch Plot"),
-      ),
-
-      h4("Type the column name of the specified columns."),
-      h5("If header is deseleted, type the indexes of the columns."),
+      shiny::actionButton(inputId = "generateAllelematchProfile", "Generate Mismatch Plot"),
+      shiny::h4("Type the column name of the specified columns."),
+      shiny::h5("If header is deseleted, type the indexes of the columns."),
 
 
       # Select Index Column
@@ -87,7 +84,7 @@ ui <- shiny::fluidPage(
               # Allow the user to select and handle all of the multiple matches that occured
               div(h4("Handle Multiple Matches")),
 
-              textInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", placeholder = "tex 2"),
+              shiny::numericInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", value = 0, min = 0, step = 1),
               DT::dataTableOutput("multipleMatchesTable"),
 
               # TODO:: Allow the user to handle these (similar to matching new data)
@@ -128,9 +125,11 @@ ui <- shiny::fluidPage(
                           shiny::conditionalPanel(condition = "input.new_data_mode == 'single'",
                                                   shiny::textInput(inputId = "new_data_index", label = "Index: "),
                                                   shiny::dateInput(inputId = "new_data_date", label = "Date: "),
-                                                  shiny::textInput(inputId = "new_data_nornt", label = "North: "),
+                                                  shiny::textInput(inputId = "new_data_north", label = "North: "),
                                                   shiny::textInput(inputId = "new_data_east", label = "East: "),
+                                                  shiny::h5(shiny::textOutput(outputId = "currentGenderStyle")),
                                                   shiny::textInput(inputId = "new_data_gender", label = "Gender: "),
+                                                  shiny::h5("Make sure the order is the same as the rest of the data, in alignment with the order given to the right."),
                                                   shiny::textInput(inputId = "new_data_locus", label = "Locus (separated by ' '):")
                                            ),
                           # If multiple is choosen, open those options
@@ -146,7 +145,7 @@ ui <- shiny::fluidPage(
                                            ),
                           shiny::tags$hr(),
                           # How many mismatchs to allow when mathcing new data to the rest of the dataset
-                          shiny::textInput(inputId = "new_data_mismatch", label = "Mismatch For New Data"),
+                          shiny::numericInput(inputId = "new_data_mismatch", label = "Mismatch For New Data", value = 3, min = 0, step = 1),
                           # Load the file or strings into data and compare with the dataset
                           shiny::actionButton(inputId = "search_new_data", label = "Match New Data To Dataset"),
                           shiny::tags$hr(),
@@ -176,10 +175,13 @@ server <- function(input, output, session) {
   })
 
   groupIndividuals <- function() {
+    req(input$file1)
     req(as.numeric(input$alleleMismatchValue))
 
     # Reload the data incase the colmn-names have changed
-    load_main_data()
+    c(data_temp, am_data_temp) %<-% load_main_data(input$file1$datapath)
+    data <<- data_temp
+    am_data <<- am_data_temp
 
     # Unpack the different data returned by our wrapper of allelematch into temp variables
     c(search_data_temp, multiple_matches_temp, unclassified_temp) %<-% GenotypeCheck::create_search_data(data, am_data, as.numeric(input$alleleMismatchValue))
@@ -190,9 +192,8 @@ server <- function(input, output, session) {
     unclassified <<- unclassified_temp
   }
 
-  load_main_data <- function() {
-    req(input$file1)
-
+  # load the main data file
+  load_main_data <- function(file) {
     # Read the locus data from the ui
     locus_columns <- strsplit(input$locusColumnNames, ",")[[1]]
 
@@ -211,10 +212,12 @@ server <- function(input, output, session) {
     }
 
     # Load the data, this will be the meta data
-    data <<- GenotypeCheck::import_data(input$file1$datapath, index_column = index_column, additional_data = additional_data, locus_names = locus_columns)
+    data <- GenotypeCheck::import_data(file, index_column = index_column, additional_data = additional_data, locus_names = locus_columns)
 
     # Create allaematch dataset, ignore some meta-data as it can be read from the "data" above, the index (SEP) is the same
-    am_data <<- GenotypeCheck::create_allelematch_dataset(data, ignore_columns = names(additional_data))
+    am_data <- GenotypeCheck::create_allelematch_dataset(data, ignore_columns = names(additional_data))
+
+    list(data, am_data)
   }
 
   update_output_preprocess_data <- function() {
@@ -246,6 +249,10 @@ server <- function(input, output, session) {
     # Show amount of unclassified samples in text
     output$amtUnclassified <- renderText(
       paste0("There were: ", length(unclassified$index), " samples that were unclassified.")
+    )
+
+    output$currentGenderStyle <- renderText(
+      paste("The datasets gender-style is: ", paste0(data$gender[!duplicated(data$gender)], sep = ", ", collapse = ""))
     )
   }
 
@@ -339,12 +346,47 @@ server <- function(input, output, session) {
     req(input$file1)
 
     # Reload the data incase teh colmnnames have changed
-    load_main_data()
+    c(data_temp, am_data_temp) %<-% load_main_data(input$file1$datapath)
+    data <<- data_temp
+    am_data <<- am_data_temp
 
     # Render the plot to the ui
     output$allelematchProfilePlot <- shiny::renderPlot({
       GenotypeCheck::generate_allelemtach_profile_plot(am_data)
     })
+  })
+
+  shiny::observeEvent(input$search_new_data, {
+    if (input$new_data_mode == "single") {
+      # Make sure the essential data is given, the rest is meta-data and it would be annoying if it were required
+      req(input$new_data_index)
+      req(input$new_data_locus)
+      req(input$new_data_mismatch)
+
+      # Read the locus data from the ui
+      locus_columns <- strsplit(input$locusColumnNames, ",")[[1]]
+
+      # Split the locus string and name the columns accordingly in the same order that have been given in the panel to the right
+      # Order is important here
+      multilocus <- strsplit(input$new_data_locus, " ")[[1]]
+
+      names(multilocus) <- locus_columns
+
+      # Create the new data, a dataframe with one row
+      new_data <- data.frame(list(index = input$new_data_index), date = input$new_data_date, north = input$new_data_north,
+                             east = input$new_data_east, gender = input$new_data_gender) %>%
+        cbind(data.frame(as.list(multilocus)))
+    } else if (input$new_data_mode == "multiple") {
+      # If a file is given, use the already exsiting function to load and parse it according to the specifications on the right
+      c(new_data, new_am_data) %<-% load_main_data(input$new_data_file$datapath)
+    }
+    # Get the search_data-type of data for the new data
+    c(new_search_data, new_multiple_match, new_unclassified) %<-% GenotypeCheck::match_new_data(data = data, new_data = new_data, additional_data_columns = names(additional_data), allele_mismatch = input$new_data_mismatch)
+
+    # DEBUG: Temp
+    print(new_search_data)
+    print(new_multiple_match)
+    print(new_unclassified)
   })
 }
 

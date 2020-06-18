@@ -81,8 +81,22 @@ create_search_data <- function(data, am_data, allele_mismatch) {
   # Group the samples together to form individuals
   am_unique <- allelematch::amUnique(am_data, alleleMismatch = allele_mismatch)
 
-  # Go through the data and create a large data.frame with all the prevoius samples, adding a column for the individ_id
   ind <- 0
+  # If a override id is specified, get the largest override id and add ind from that
+  if (!is.null(data$preset_ind)) {
+    # Convert everything to a number
+    preset_num <- as.numeric(data[,"preset_ind"])
+    # Remove everything that is not a number, out generated ind cannot accidentaly assume the same value
+    preset_num <- preset_num[!is.na(preset_num)]
+    # Start right after the biggest one found
+    ind_biggest <- max(preset_num) + 1
+    # If all override_ids were NA or not numbers, we can count from zero like usual
+    if (is.na(ind_biggest)) {
+      ind_biggest <- 0
+    }
+  }
+
+  # Go through the data and create a large data.frame with all the prevoius samples, adding a column for the individ_id
   search_data <- data.frame(index = character(), multilocus = character(), individ_id = character())
 
   for (pair in am_unique$pairwise) {
@@ -97,10 +111,7 @@ create_search_data <- function(data, am_data, allele_mismatch) {
 
   # If a override_id column is specified, write it to the new column
   if (!is.null(data$preset_ind)) {
-    for (ind in 1:length(search_data$index)) {
-      new_id <- data[search_data$index[[ind]],"preset_ind"]
-      search_data$override_id[[ind]] <- new_id
-    }
+    search_data$override_id <- data[search_data$index,"preset_ind"]
   }
 
   # The multiple matches that have been handled by the user previously and is now in the file
@@ -210,4 +221,31 @@ handle_multimatch <- function(search_data, multiple_matches, multimatch_index, n
 
   # Return the updated data
   list(search_data, multiple_matches)
+}
+
+#' Title
+#'
+#' @param data The old data, containing all samples that have already been handeled, or been choosen not to be handleh
+#' @param new_data The new data, the meta-data for the new sample, containing the same columns as the old data, index, locus, date, gender, etc
+#' @param additional_data_columns The names of the columns containing the meta-data for the \code{\link{create_allelematch_dataset}} to be able to create a new am_dataset
+#' @param allele_mismatch The mismatch (numbers of alleles that are allowed to differ between individuals) to use for this grouping, user could be intrested in being more strict or more loose, up to them
+#'
+#' @return Returns only the new data grouped into search_data format, which of them that matched multiple and if some of them were unclassified
+#' @export
+#'
+#' @examples
+match_new_data <- function(data, new_data, additional_data_columns, allele_mismatch) {
+  # Combine the data under each other, create a big data.frame
+  print(head(data))
+  print(head(new_data))
+  combined_data <- rbind(data, new_data)
+  # Create an amDataset to be able to run the grouping on all of the data
+  am_data <- create_allelematch_dataset(data = combined_data, ignore_columns = additional_data_columns)
+  # Get the combined data for all samples, every index and group, including which fitted into multiple and which were unclassified
+  c(combined_search_data, combined_multiple_matches, combined_unclassified) %<-% create_search_data(data = combined_data,
+              am_data = am_data, allele_mismatch = allele_mismatch)
+  # Return the data gathered but filter to only keep the entries whos indexes are not in the "old" data. Thereby only passing on the new data but sorted with individ_id, if they matched multiple and if they were unclassified
+  list(combined_search_data[!combined_search_data$index %in% data$index,],
+              combined_multiple_matches[!combined_multiple_matches %in% data$index],
+              combined_unclassified[!combined_unclassified$index %in% data$index])
 }
