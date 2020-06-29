@@ -4,48 +4,39 @@ library(readxl)
 library(readODS)
 
 
-#
-# library(poppr)
-# library(adegenet)
-# library(phangorn)
-# library(ape)
-#
-#
-# locus_names <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
-#                  "Mu23", "Mu23.1", "Mu50", "Mu50.1", "Mu51", "Mu51.1", "Mu59", "Mu59.1")
-#
-# data <- import_data("data/AC_allKorr.csv", "SEP", c(), locus_names)
-#
-# new_data <- data.frame(index = data$index)
-# for (i in 1:(length(locus_names) / 2)) {
-#   new_data <- cbind(new_data, paste(data[,locus_names[2 * i]], data[,locus_names[2 * i - 1]], sep = " "))
-# }
-#
-# colnames(new_data) <- c("index", locus_names[c(TRUE, FALSE)])
-# rownames(new_data) <- new_data$index
-# new_data <- new_data %>% select(locus_names[c(TRUE, FALSE)])
-#
-# gendata <- as.genclone(df2genind(new_data, sep = " ", ploidy = 2, ncode = 3))
-#
-#
-#
-#
-# raw_dist <- function(x){
-#   dist(genind2df(x, usepop = FALSE))
-# }
-# xdis <- raw_dist(gendata)
-# # plot.phylo(upgma(xdis))
-#
-# # mlg.filter(gendata, distance = xdis) <- 1 + .Machine$double.eps^0.5
-# mlg.filter(gendata, distance = bruvo.dist, replen = c(2, 2, 2, 2, 1, 2, 2, 2)) <- 0.8
-# # bruvo.dist(gendata, replen = c(2, 2, 2, 2, 1, 2, 2, 2))
-# mlg.table(gendata)
+library(poppr)
+library(adegenet)
+library(phangorn)
+library(ape)
 
-#
-#
-#
-#
-# gendata <- df2genind(data, sep = " ")
+locus_names <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
+                "Mu23", "Mu23.1", "Mu50", "Mu50.1", "Mu51", "Mu51.1", "Mu59", "Mu59.1")
+
+locus_names_known <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
+                       "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
+
+data <- import_data("data/AC_allKorr.csv", "SEP", c(), locus_names)
+
+new_data <- data.frame(index = data$index)
+for (i in 1:(length(locus_names) / 2)) {
+  new_data <- cbind(new_data, paste(data[,locus_names_known[2 * i - 1]], data[,locus_names_known[2 * i]], sep = " "))
+}
+
+colnames(new_data) <- c("index", locus_names_known[c(TRUE, FALSE)])
+rownames(new_data) <- new_data$index
+new_data <- new_data %>% select(locus_names_known[c(TRUE, FALSE)])
+
+gendata <- as.genclone(df2genind(new_data, sep = " ", ploidy = 2, ncode = 3))
+
+raw_dist <- function(x){
+  dist(genind2df(x, usepop = FALSE))
+}
+xdis <- raw_dist(gendata)
+plot.phylo(upgma(xdis))
+# mlg.filter(gendata, distance = xdis) <- 1 + .Machine$double.eps^0.5
+mlg.filter(gendata, distance = bruvo.dist, replen = c(2, 2, 2, 2, 1, 2, 2, 2)) <- 0.6
+# bruvo.dist(gendata, replen = c(2, 2, 2, 2, 1, 2, 2, 2))
+mlg.table(gendata)
 
 
 
@@ -139,7 +130,7 @@ create_search_data <- function(data, am_data, allele_mismatch) {
   if (!is.null(data$preset_ind)) {
     # Convert everything to a number
     preset_num <- as.numeric(data[,"preset_ind"])
-    # Remove everything that is not a number, out generated ind cannot accidentaly assume the same value
+    # Remove everything that is not a number, our generated ind cannot accidentaly assume the same value
     preset_num <- preset_num[!is.na(preset_num)]
     # Start right after the biggest one found
     ind_biggest <- max(preset_num) + 1
