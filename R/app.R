@@ -38,6 +38,9 @@ ui <- shiny::fluidPage(
       # Input: Checkbox if file has header
       shiny::checkboxInput("header", "Header", TRUE),
 
+      # Input: The name of the sheet to be loaded
+      shiny::textInput(inputId = "sheet", label = "Sheet name"),
+
       shiny::tags$hr(),
       # Select allele mismatch value
       shiny::numericInput(inputId = "alleleMismatchValue", label = "Allowed Allele-mismatch", value = 3, min = 0, step = 1),
@@ -51,26 +54,26 @@ ui <- shiny::fluidPage(
 
 
       # Select Index Column
-      textInput(inputId = "indexColumnName", label = "Index Column", value = "SEP"),
+      shiny::textInput(inputId = "indexColumnName", label = "Index Column", value = "SEP"),
 
       # All user to specify colmn-names/indexes for
-      textInput(inputId = "dateColumnName", label = "Date Column", value = "Funnetdatum"),
-      textInput(inputId = "northColumnName", label = "North Column", value = "Nord"),
-      textInput(inputId = "eastColumnName", label = "East Column", value = "Ost"),
-      textInput(inputId = "genderColumnName", label = "Gender Column", value = "Kon"),
-      textInput(inputId = "presetIndColumnName", label = "PresetIndividual Column", value = "Individ"),
+      shiny::textInput(inputId = "dateColumnName", label = "Date Column", value = "Funnetdatum"),
+      shiny::textInput(inputId = "northColumnName", label = "North Column", value = "Nord"),
+      shiny::textInput(inputId = "eastColumnName", label = "East Column", value = "Ost"),
+      shiny::textInput(inputId = "genderColumnName", label = "Gender Column", value = "Kon"),
+      shiny::textInput(inputId = "presetIndColumnName", label = "PresetIndividual Column", value = "Individ"),
 
       # Select Locus Columns
-      textInput(inputId = "locusColumnNames", label = "Locus Columns (separated by ',')", value = paste0(locus_names, collapse = "", sep = ",")),
+      shiny::textInput(inputId = "locusColumnNames", label = "Locus Columns (separated by ',')", value = paste0(locus_names, collapse = "", sep = ",")),
 
       # Parse Data
-      actionButton(inputId = "groupIndividuals", label = "GROUP INDIVIDUALS"),
+      shiny::actionButton(inputId = "groupIndividuals", label = "GROUP INDIVIDUALS"),
 
-      tags$hr(),
+      shiny::tags$hr(),
 
       # Display some result data to the user
-      textOutput(outputId = "amtMultipleMatches"),
-      textOutput(outputId = "amtUnclassified"),
+      shiny::textOutput(outputId = "amtMultipleMatches"),
+      shiny::textOutput(outputId = "amtUnclassified"),
     ),
 
     # Main panel for displaying outputs
@@ -82,28 +85,28 @@ ui <- shiny::fluidPage(
                         ),
         shiny::tabPanel(title = "Handle Multiple Matches And Unclassified Samples", value = "handle_multiple_matches_and_unclassified_samples",
               # Allow the user to select and handle all of the multiple matches that occured
-              div(h4("Handle Multiple Matches")),
+              shiny::div(shiny::h4("Handle Multiple Matches")),
 
-              shiny::numericInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", value = 0, min = 0, step = 1),
+              shiny::numericInput(inputId = "multipleMatchIndex", label = "View Details (Index of Multiple Matched Sample): ", value = 0, min = 1, step = 1),
               DT::dataTableOutput("multipleMatchesTable"),
 
               # TODO:: Allow the user to handle these (similar to matching new data)
-              div(h4("Handle Unclassified Samples")),
+              shiny::div(shiny::h4("Handle Unclassified Samples")),
 
               DT::dataTableOutput("unclassifiedTable"),
 
               # Panel for handeling multiple matched data, will probably be similar to the panel for matching new data
-              conditionalPanel("input.multipleMatchIndex != ''",
+              shiny::conditionalPanel("input.multipleMatchIndex != ''",
                                # "Showing Multimatch data for SEP123123" <-- Example
-                               h4(textOutput("multiMatchDataFor")),
-                               h5("The sample matched the following individuals: "),
+                               shiny::h4(textOutput("multiMatchDataFor")),
+                               shiny::h5("The sample matched the following individuals: "),
                                # Desired: map beside data, now it jumps down because of size, not that important
-                               sidebarLayout(
-                                 sidebarPanel = sidebarPanel(width = 9,
+                               shiny::sidebarLayout(
+                                 sidebarPanel = shiny::sidebarPanel(width = 9,
                                   # Render the ones that were similar
                                    DT::dataTableOutput("multipleMatchedSingle"),
                                  ),
-                                 mainPanel = mainPanel(
+                                 mainPanel = shiny::mainPanel(
                                    # render the map for the user to have all data when deciding which individual to add it to
                                    leafletOutput(outputId = "multiMatchMap"),
                                  ),
@@ -111,9 +114,9 @@ ui <- shiny::fluidPage(
                                # User choose and add to a group of samples/individual - information
                                h5("If this ID is one of the listed above the sample will be added to that group of sample/individual, if not, the sample will create a new individual IF the new ID does not already exist, make sure it is unique if that is the desired action."),
                                # Text box to type new id, either create new group or create a override id for every sample in that group
-                               textInput(inputId = "multipleMatchFix", label = "Set ID/Individual to group: "),
-                               actionButton(inputId = "multipleMatchFixConfirm", label = "Confirm/Save to data"),
-                               tags$hr(),
+                               shiny::textInput(inputId = "multipleMatchFix", label = "Set ID/Individual to group: "),
+                               shiny::actionButton(inputId = "multipleMatchFixConfirm", label = "Confirm/Save to data"),
+                               shiny::tags$hr(),
                                ),
                   ),
         # Tab for loading and testing new data
@@ -135,7 +138,7 @@ ui <- shiny::fluidPage(
                           # If multiple is choosen, open those options
                           shiny::conditionalPanel(condition = "input.new_data_mode == 'multiple'",
 
-                                            shiny::h5("Using column-names from the panel on the right, make sure they match the given file."),
+                                            shiny::h5("Using column-names from the panel on the left, make sure they match the given file."),
                                             # Allow user to load a file with the data
                                             shiny::fileInput(inputId = "new_data_file", label = "Choose Data File",
                                                   multiple = FALSE,
@@ -199,10 +202,12 @@ server <- function(input, output, session) {
 
     # Read all of columns for the additional data from the ui
     additional_data <<- list(date = input$dateColumnName, north = input$northColumnName, east = input$eastColumnName, gender = input$genderColumnName, preset_ind = input$presetIndColumnName)
-    # If the user does not specify column they get removed here to not have empty objects later that mess things up
+    # If the user does not specify column they get removed here to not have empty objects
     additional_data <<- additional_data[additional_data != ""]
 
     index_column <- input$indexColumnName
+
+    sheet <- input$sheet
 
     # Convert the numbers if header is deselected (and we are handeling columnindexes instead of columnnames)
     if (!input$header) {
@@ -212,7 +217,7 @@ server <- function(input, output, session) {
     }
 
     # Load the data, this will be the meta data
-    data <- GenotypeCheck::import_data(file, index_column = index_column, additional_data = additional_data, locus_names = locus_columns)
+    data <- GenotypeCheck::import_data(file, index_column = index_column, additional_data = additional_data, locus_names = locus_columns, sheet = sheet)
 
     # Create allaematch dataset, ignore some meta-data as it can be read from the "data" above, the index (SEP) is the same
     am_data <- GenotypeCheck::create_allelematch_dataset(data, ignore_columns = names(additional_data))
@@ -363,21 +368,21 @@ server <- function(input, output, session) {
       req(input$new_data_locus)
       req(input$new_data_mismatch)
 
-      # Read the locus data from the ui
-      locus_columns <- strsplit(input$locusColumnNames, ",")[[1]]
-
-      # Split the locus string and name the columns accordingly in the same order that have been given in the panel to the right
+      # Split the locus string and name the columns accordingly in the same order that have been given in the panel to the lift
       # Order is important here
       multilocus <- strsplit(input$new_data_locus, " ")[[1]]
 
-      names(multilocus) <- locus_columns
+      # Name the locus according to the preset names, important to have the same order
+      locus_names_known <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
+      multilocus_df_named <- data.frame(as.list(multilocus))
+      colnames(multilocus_df_named) <- locus_names_known
 
       # Create the new data, a dataframe with one row
       new_data <- data.frame(list(index = input$new_data_index), date = input$new_data_date, north = input$new_data_north,
                              east = input$new_data_east, gender = input$new_data_gender) %>%
-        cbind(data.frame(as.list(multilocus)))
+        cbind(multilocus_df_named)
     } else if (input$new_data_mode == "multiple") {
-      # If a file is given, use the already exsiting function to load and parse it according to the specifications on the right
+      # If a file is given, use the already exsiting function to load and parse it according to the specifications on the left
       c(new_data, new_am_data) %<-% load_main_data(input$new_data_file$datapath)
     }
     # Get the search_data-type of data for the new data
@@ -387,6 +392,10 @@ server <- function(input, output, session) {
     print(new_search_data)
     print(new_multiple_match)
     print(new_unclassified)
+
+    ####### TODO : If the user adds a file with multiple new data the ids gets weird... fix this... maybe load the previous data
+    #############  and make sure the new indexes are bigger then the biggest and that if they are in the same category set the id
+    #############  to be the same.
   })
 }
 

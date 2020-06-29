@@ -3,6 +3,52 @@ library(allelematch)
 library(readxl)
 library(readODS)
 
+
+#
+# library(poppr)
+# library(adegenet)
+# library(phangorn)
+# library(ape)
+#
+#
+# locus_names <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
+#                  "Mu23", "Mu23.1", "Mu50", "Mu50.1", "Mu51", "Mu51.1", "Mu59", "Mu59.1")
+#
+# data <- import_data("data/AC_allKorr.csv", "SEP", c(), locus_names)
+#
+# new_data <- data.frame(index = data$index)
+# for (i in 1:(length(locus_names) / 2)) {
+#   new_data <- cbind(new_data, paste(data[,locus_names[2 * i]], data[,locus_names[2 * i - 1]], sep = " "))
+# }
+#
+# colnames(new_data) <- c("index", locus_names[c(TRUE, FALSE)])
+# rownames(new_data) <- new_data$index
+# new_data <- new_data %>% select(locus_names[c(TRUE, FALSE)])
+#
+# gendata <- as.genclone(df2genind(new_data, sep = " ", ploidy = 2, ncode = 3))
+#
+#
+#
+#
+# raw_dist <- function(x){
+#   dist(genind2df(x, usepop = FALSE))
+# }
+# xdis <- raw_dist(gendata)
+# # plot.phylo(upgma(xdis))
+#
+# # mlg.filter(gendata, distance = xdis) <- 1 + .Machine$double.eps^0.5
+# mlg.filter(gendata, distance = bruvo.dist, replen = c(2, 2, 2, 2, 1, 2, 2, 2)) <- 0.8
+# # bruvo.dist(gendata, replen = c(2, 2, 2, 2, 1, 2, 2, 2))
+# mlg.table(gendata)
+
+#
+#
+#
+#
+# gendata <- df2genind(data, sep = " ")
+
+
+
 #' Import and format data
 #' @description To be replaced by the user chosing the relevant columns
 #'
@@ -10,6 +56,7 @@ library(readODS)
 #' @param index_column The name or index of the column containing the indexes
 #' @param additional_data A vector with the names or indexes to the columns that contain the date, north, east, gender, and any preset id:s in that order.
 #' @param locus_names A vector with the name or indexes to the columns that contain the genotypes
+#' @param sheet The index or name to the sheet desired from the file. Does noting if a csv file is loaded.
 #'
 #' @return A table with the relevant columns from the file
 #' @export
@@ -18,21 +65,23 @@ library(readODS)
 #' \dontrun{
 #' data <- import_data("raw_data.csv")
 #' }
-import_data <- function(file, index_column, additional_data, locus_names) {
+import_data <- function(file, index_column, additional_data, locus_names, sheet = 1) {
   # Read the data from the file depending on the file type
   if (endsWith(file, ".xls") | endsWith(file, ".xlsx")) {
-    raw_data <- readxl::read_excel(path = file, sheet = 1, na = c("NA"), col_names = TRUE)
+    raw_data <- readxl::read_excel(path = file, sheet = sheet, na = c("NA"), col_names = TRUE)
   } else if (endsWith(file, "ods")) {
-    raw_data <- readODS::read_ods(path = file, col_names = TRUE, na = "NA")
+    raw_data <- readODS::read_ods(path = file, col_names = TRUE, na = "NA", sheet = sheet)
   } else {
     raw_data <- read.table(file = file, header = TRUE, sep = ",", na.strings = c("NA"))
   }
+
   # Select only the columns we are intressted in
   data <- raw_data %>%
     select(all_of(index_column), as.vector(unlist(additional_data)), all_of(locus_names))
 
   # Rename all column to be the names we know (index, north, south, gender etc) insted of the colmn names from the file
-  colnames(data) <- c("index", names(additional_data), locus_names)
+  locus_names_known <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
+  colnames(data) <- c("index", names(additional_data), locus_names_known)
   # Make the rows indexable by index
   rownames(data) <- data$index
   # Return the table
@@ -56,6 +105,10 @@ import_data <- function(file, index_column, additional_data, locus_names) {
 #' am_data <- create_allelematch_dataset(data)
 #' }
 create_allelematch_dataset <- function(data, ignore_columns) {
+  # If ignore_columns is empty we have no columns to ignore and change it therefor to NULL for it not te be read as a character in the amDataset function.
+  if (identical(ignore_columns, character(0))) {
+    ignore_columns <- NULL
+  }
   # Create the allelematch dataset
   am_data <- allelematch::amDataset(data, indexColumn = "index", ignoreColumn = as.vector(unlist(ignore_columns)), missingCode = "000")
   # Retrun the allelematch dataset
@@ -236,9 +289,9 @@ handle_multimatch <- function(search_data, multiple_matches, multimatch_index, n
 #' @examples
 match_new_data <- function(data, new_data, additional_data_columns, allele_mismatch) {
   # Combine the data under each other, create a big data.frame
-  print(head(data))
-  print(head(new_data))
-  combined_data <- rbind(data, new_data)
+  # print(head(data))
+  # print(head(new_data))
+  combined_data <- dplyr::bind_rows(data[,colnames(data) %in% colnames(new_data)], new_data)
   # Create an amDataset to be able to run the grouping on all of the data
   am_data <- create_allelematch_dataset(data = combined_data, ignore_columns = additional_data_columns)
   # Get the combined data for all samples, every index and group, including which fitted into multiple and which were unclassified

@@ -17,4 +17,5 @@ Imports:
   readODS,
   rgdal,
   shiny,
-  zeallot
+  zeallot,
+  adegenet
