@@ -9,7 +9,6 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.0
 Imports:
-  allelematch,
   dplyr,
   DT,
   leaflet,
@@ -17,5 +16,4 @@ Imports:
   readODS,
   rgdal,
   shiny,
-  zeallot,
-  adegenet
+  zeallot
