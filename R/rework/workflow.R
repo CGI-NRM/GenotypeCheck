@@ -14,8 +14,6 @@ names(locus_columns) <- locus_column_names
 data <- load_data(file_path = "~/Downloads/AC_allKorr.csv", index_column = "SEP", locus_columns = locus_columns, "Individ",
                   meta_columns = c(date = "Funnetdatum", north = "Nord", east = "Ost", gender = "Kon"))
 
-str(data)
-
 ## CREATE EXAMPLE DATA
 locus_data <- c("110", "112", "143", "145", "123", "127", "164", "170", "150", "150", "230", "248", "184", "186", "128", "132")
 names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2", "MU23 - 1", "MU23 - 2", 
@@ -23,3 +21,20 @@ names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1
 
 new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
 
+sanity_message <- sanity_check_new_data(new_data, data)
+
+# Display sanite message to user
+
+new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
+
+# TODO:: Generate plot to allow user to choose a fitting threshold value
+
+threshold <- 200
+
+possible_matches <- match_new_data(new_data, threshold)
+
+# Display the options to the user, then let them choose
+
+new_id <- data$meta[possible_matches[1], "individ"]
+
+merged_data <- merge_new_data(new_data, data, new_id)
