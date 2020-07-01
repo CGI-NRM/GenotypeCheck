@@ -2,7 +2,7 @@ library(dplyr)
 library(readxl)
 library(readODS)
 
-load_data <- function(file_path, index_column, locus_columns, individ_column, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
+load_data <- function(file_path, index_column, locus_columns, individ_column = NA, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
     if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
         raw_data <- readxl::read_excel(path = filepath, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".ods")) {
@@ -15,7 +15,11 @@ load_data <- function(file_path, index_column, locus_columns, individ_column, me
         warning("The indexes are not a unique identifier.")
     }
 
-    meta_data <- data.frame(raw_data %>% select(all_of(index_column), all_of(meta_columns), all_of(individ_column)))
+    if (is.na(individ_column)) {
+        meta_data <- data.frame(raw_data %>% select(all_of(index_column), all_of(meta_columns)), NA)
+    } else {
+        meta_data <- data.frame(raw_data %>% select(all_of(index_column), all_of(meta_columns), all_of(individ_column)))
+    }
     colnames(meta_data) <- c("index", names(meta_columns), "individ")
     rownames(meta_data) <- meta_data$index
 
@@ -24,7 +28,7 @@ load_data <- function(file_path, index_column, locus_columns, individ_column, me
     colnames(locus_data) <- c(names(locus_columns))
     rownames(locus_data) <- meta_data$index
 
-    data <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(locus_columns), meta_column_names = c("index", names(meta_columns), "individ"))
+    data <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(locus_columns), meta_column_names = c("index", names(meta_columns), "individ"), multilocus_names = "index")
     data
 }
 
@@ -39,29 +43,56 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     colnames(meta_data) <- c("index", names(meta), "individ")
     rownames(meta_data) <- c(index)
 
-    ndata <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), distances = c(NULL))
+    ndata <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), distances = list(distances = c(NULL), names_type = c(NULL)))
     ndata
 }
 
+create_new_data_batch <- function(file_path, index_column, locus_columns, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
+    load_data(file_path = file_path, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns, na_strings = na_strings, sheet = sheet)
+}
+
 sanity_check_new_data <- function(new_data, data) {
+    problems <- c()
+
     range <- data.frame(as.list(apply(data$multilocus, 2, min, na.rm = TRUE))) %>%
         rbind(data.frame(as.list(apply(data$multilocus, 2, max, na.rm = TRUE))))
 
     colnames(range) <- colnames(data$multilocus)
+    rownames(range) <- c("min", "max")
 
-    test_values <- data.frame(as.list(new_data$multilocus))
-    colnames(test_values) <- names(new_data$multilocus)
-    range <- range %>% rbind(test_values)
-
-    rownames(range) <- c("min", "max", "current")
-
-    outside_range <- range["current",] > range["max",] | range["current",] < range["min",]
-
-    if (outside_range %>% any()) {
-        return(paste("Some values are outside the range of the rest of the dataset, ensure that this is intended and that the locuses are in the correct order. The problematic locuses are:", paste(colnames(range)[outside_range], collapse = ", ")))
+    for (i in seq(nrow(new_data$multilocus))) {
+        test_values <- new_data$multilocus[i,]
+        names(test_values) <- colnames(new_data$multilocus)
+        outside_range <- test_values > range["max",] | test_values < range["min",]
+        outside_range[is.na(outside_range)] <- FALSE
+        if (any(outside_range, na.rm = TRUE)) {
+            problems <- c(problems, paste(new_data$meta$index[i], "had some values outside the expected range. The problematic locuses are:", paste(names(test_values)[outside_range], collapse = ", ")))
+        }
     }
 
-    return("No problems were found with the new data.")
+    if (length(problems) >= 1) {
+        problems <- c("Some values are outside of the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.", problems)
+    }
+
+    if (sum(is.na(new_data$multilocus)) > 4) {
+        problems <- c(problems, "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset")
+    }
+
+    if (length(problems) == 0) {
+        return("No problems were found with the new data.")
+    } else {
+        return(problems)
+    }
+}
+
+calculate_individ_centers <- function(data) {
+    individs <- aggregate(data$multilocus, list(data$meta$individ), mean)
+    rownames(individs) <- individs[,1]
+    individs[,1] <- NULL
+
+    individs <- apply(individs, c(1, 2), as.integer)
+
+    list(multilocus = individs, multilocus_names = "individ")
 }
 
 # A list with two vectors, each containing the locuses of the different samples
@@ -78,26 +109,61 @@ dist_euclidian <- function(multilocus1, multilocus2) {
 # new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian) 
 calculate_new_data_distances <- function(new_data, data, distance_function) {
 
-    distances <- mapply(distance_function, split(data$multilocus, seq(nrow(data$multilocus))), split(new_data$multilocus, 1))
-    names(distances) <- rownames(data$multilocus)
+    distances <- list()
+    data_rows <- split(data$multilocus, seq(nrow(data$multilocus)))
+    multilocus_rows <- 
 
-    distances
-}
-
-match_new_data <- function(new_data, threshold) {
-    if (is.null(new_data$distances)) {
-        warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
-        return(NULL)
+    for (ndata_row in seq(nrow(new_data$multilocus))) {
+        distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row])
+        names(distance) <- rownames(data$multilocus)
+        distances <- append(distances, list(distance))
     }
 
-    names(new_data$distances[new_data$distances <= threshold])
+    names(distances) <- new_data$meta$index
+
+    list(distances = distances, names_type = data$multilocus_names)
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# NOT DONE - NEED HANDELING OF MULTIPLE THINGS
+generate_threshold_plot <- function(all_new_data) {
+    min_dist <- min(new_data$distances$distances, na.rm = TRUE)
+    max_dist <- max(new_data$distances$distances, na.rm = TRUE)
+
+    pl <- list(thre = min_dist + (max_dist - min_dist) * seq(0, 1, 0.01))
+    pl
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+match_new_data <- function(new_data, threshold) {
+    if (is.null(new_data$distances$distances)) {
+        warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
+        return(NA)
+    }
+
+    possible_matches <- list()
+    for (new_ind in new_data$meta$index) {
+        possible_matches <- append(possible_matches, list(list(ids = names(new_data$distances$distances[[new_ind]][new_data$distances$distances[[new_ind]] <= threshold]), 
+            id_type = new_data$distances$names_type)))
+    }
+    names(possible_matches) <- new_data$meta$index
+    possible_matches
+}
+
+extract_one_index_from_batch <- function(batch, index) {
+    list(multilocus = batch$multilocus[index,], meta = batch$meta[index,], locus_column_names = batch$locus_column_names, 
+        meta_column_names = batch$meta_column_names, multilocus_names = batch$multilocus_names)
 }
 
 merge_new_data <- function(new_data, data, new_data_id) {
+    if (is.na(new_data_id)) {
+        return(list(data = data, success = FALSE))
+    }
+
     data$multilocus <- data$multilocus %>% rbind(new_data$multilocus)
     new_data$meta$individ <- new_data_id
     data$meta <- data$meta %>% rbind(new_data$meta)
 
-    data
+    list(data = data, success = TRUE)
 }
 
