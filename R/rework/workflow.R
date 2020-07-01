@@ -51,7 +51,7 @@ if (identical(nda, "one")) {
     # TODO:: Generate plot to allow user to choose a fitting threshold value
     # threshold_plot <- generate_threshold_plot(new_data)
 
-    threshold <- 200
+    threshold <- 20
 
     possible_matches <- match_new_data(new_data, threshold)
 

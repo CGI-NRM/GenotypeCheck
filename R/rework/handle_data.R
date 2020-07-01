@@ -27,6 +27,7 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
         apply(c(1, 2), as.numeric)
     colnames(locus_data) <- c(names(locus_columns))
     rownames(locus_data) <- meta_data$index
+    locus_data <- locus_data[,sort(colnames(locus_data))]
 
     data <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(locus_columns), meta_column_names = c("index", names(meta_columns), "individ"), multilocus_names = "index")
     data
@@ -38,6 +39,7 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     locus_data <- data.frame(as.list(as.numeric(multilocus)))
     colnames(locus_data) <- c(names(multilocus))
     rownames(locus_data) <- c(index)
+    locus_data <- locus_data[,sort(colnames(locus_data))]
 
     meta_data <- data.frame(index, as.list(meta), NA)
     colnames(meta_data) <- c("index", names(meta), "individ")
@@ -63,6 +65,8 @@ sanity_check_new_data <- function(new_data, data) {
     for (i in seq(nrow(new_data$multilocus))) {
         test_values <- new_data$multilocus[i,]
         names(test_values) <- colnames(new_data$multilocus)
+        # Rearrange to match the correct locus with each other
+        test_values <- test_values[,colnames(range)]
         outside_range <- test_values > range["max",] | test_values < range["min",]
         outside_range[is.na(outside_range)] <- FALSE
         if (any(outside_range, na.rm = TRUE)) {
