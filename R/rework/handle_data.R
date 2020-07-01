@@ -4,7 +4,7 @@ library(readODS)
 
 load_data <- function(file_path, index_column, locus_columns, individ_column = NA, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
     if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
-        raw_data <- readxl::read_excel(path = filepath, col_names = TRUE, na = na_strings, sheet = sheet)
+        raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".ods")) {
         raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else {
