@@ -368,15 +368,15 @@ server <- function(input, output, session) {
 
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
-        for (ind in names(possible_matches)) {
+        lapply(names(possible_matches), function(ind) {
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
 
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(rownames = FALSE, filter = "top", {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(rownames = FALSE, {
                 generate_user_choice_data_frame(possible_matches, new_data, data, ind)
             })
-        }
+        })
     })
 }
 

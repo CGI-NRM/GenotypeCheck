@@ -139,12 +139,16 @@ combine_multilocus <- function(locus) {
 }
 
 generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
-    df <- data.frame()
+    df <- data.frame(index = c(ind))
 
     if (identical(possible_matches[[ind]]$id_type, "index")) {
-        df <- data.frame(index = possible_matches[[ind]]$ids)
+        df <- rbind(df, data.frame(index = possible_matches[[ind]]$ids))
+        multi <- combine_multilocus(new_data$multilocus[ind,])
+        multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus[possible_matches[[ind]]$ids,], 1, combine_multilocus)))
+        df <- cbind(df, multi)
+        colnames(df) <- c("index", "multilocus")
     } else if (identical(possible_matches[[ind]]$id_type, "individ")) {
-        df <- data.frame(index = data$meta$index[data$meta$individ %in% possible_matches[[ind]]$ids])
+        df <- rbind(df, data.frame(index = data$meta$index[data$meta$individ %in% possible_matches[[ind]]$ids]))
     }
 
     # TODO: Add distances and multilocus
