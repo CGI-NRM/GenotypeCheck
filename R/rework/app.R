@@ -22,7 +22,7 @@ ui <- shiny::fluidPage(
                             shiny::uiOutput(outputId = "load_data_button")
                         ),
                         mainPanel = shiny::mainPanel(
-                            DT::dataTableOutput("dataset_table")
+                            DT::dataTableOutput(outputId = "dataset_table")
                         )
                     )
                 )
@@ -84,6 +84,9 @@ ui <- shiny::fluidPage(
                                             )
                                         ),
                                         mainPanel = shiny::mainPanel(
+                                            shiny::h4(shiny::textOutput(outputId = "sanity_check")),
+                                            shiny::textOutput(outputId = "sanity_message"),
+                                            shiny::tags$hr(),
                                             DT::dataTableOutput(outputId = "new_data_datatable")
                                         )
                                     )
@@ -95,8 +98,23 @@ ui <- shiny::fluidPage(
                             shiny::fluidRow(
                                 shiny::column(width = 12,
                                     shiny::h4(shiny::textOutput(outputId = "load_data_before_match")),
-                                    shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc"), selected = "euc"),
-                                    shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances")
+                                    shiny::sidebarLayout(
+                                        sidebarPanel = shiny::sidebarPanel(width = 3,
+                                            shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc"), selected = "euc"),
+                                            shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
+                                            shiny::textOutput(outputId = "distances_done_message"),
+                                            shiny::tags$hr(),
+                                            shiny::conditionalPanel(condition = "input.generate_threshold_plot > 0",
+                                                shiny::plotOutput(outputId = "threshold_plot")
+                                            ),
+                                            shiny::actionButton(inputId = "generate_threshold_plot", label = "Generate Threshold Plot"),
+                                            shiny::numericInput(inputId = "match_threshold", label = "Distance Threshold To Match", value = 0, min = 0),
+                                            shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data")
+                                        ),
+                                        mainPanel = shiny::mainPanel(
+                                            shiny::div(id = "show_matches")
+                                        )
+                                    )
                                 )
                             )
                         )
@@ -111,12 +129,13 @@ server <- function(input, output, session) {
 
     data <- list()
     new_data <- list()
+    possible_matches <- list()
 
     output$load_data_hint <- shiny::renderText("You Need To Load The Dataset Before You Can Match New Data Against It")
     output$load_data_before_match <- shiny::renderText("You Need To Load Some New Data Before You Can Match It Against The Dataset") 
 
-    observeEvent(input$data_file, {
-        req(input$data_file)
+    shiny::observeEvent(input$data_file, {
+        shiny::req(input$data_file)
 
         output$load_data_choice <- shiny::renderUI({
             if (endsWith(input$data_file$datapath, ".xls") | endsWith(input$data_file$datapath, ".xlsx") | endsWith(input$data_file$datapath, ".ods")) {
@@ -128,8 +147,8 @@ server <- function(input, output, session) {
         })
     })
 
-    observeEvent(input$new_data_file, {
-        req(input$new_data_file)
+    shiny::observeEvent(input$new_data_file, {
+        shiny::req(input$new_data_file)
 
         output$load_new_data_choice <- shiny::renderUI({
             if (endsWith(input$new_data_file$datapath, ".xls") | endsWith(input$new_data_file$datapath, ".xlsx") | endsWith(input$new_data_file$datapath, ".ods")) {
@@ -141,14 +160,14 @@ server <- function(input, output, session) {
         })
     })
 
-    observeEvent({input$new_data_file
+    shiny::observeEvent({input$new_data_file
                   input$load_new_data_sheet_done
                   1
                   }, {
-        req(input$new_data_file)
+        shiny::req(input$new_data_file)
 
         if (endsWith(input$new_data_file$datapath, ".xls") | endsWith(input$new_data_file$datapath, ".xlsx") | endsWith(input$new_data_file$datapath, ".ods")) {
-            req(input$load_new_data_sheet)
+            shiny::req(input$load_new_data_sheet)
         }
 
         headers <- load_file_headers(input$new_data_file$datapath, input$load_new_data_sheet)
@@ -189,14 +208,14 @@ server <- function(input, output, session) {
         })
     })
 
-    observeEvent({input$data_file
+    shiny::observeEvent({input$data_file
                   input$load_data_sheet_done
                   1
                   }, {
-        req(input$data_file)
+        shiny::req(input$data_file)
 
         if (endsWith(input$data_file$datapath, ".xls") | endsWith(input$data_file$datapath, ".xlsx") | endsWith(input$data_file$datapath, ".ods")) {
-            req(input$load_data_sheet)
+            shiny::req(input$load_data_sheet)
         }
 
         headers <- load_file_headers(input$data_file$datapath, input$load_data_sheet)
@@ -250,7 +269,7 @@ server <- function(input, output, session) {
         colnames(raw_data)
     }
 
-    observeEvent(input$load_data_button, {
+    shiny::observeEvent(input$load_data_button, {
 
         locus_columns <- c(input$load_data_choice_locus_1, input$load_data_choice_locus_2, input$load_data_choice_locus_3, input$load_data_choice_locus_4, 
                           input$load_data_choice_locus_5, input$load_data_choice_locus_6, input$load_data_choice_locus_7, input$load_data_choice_locus_8, 
@@ -260,7 +279,7 @@ server <- function(input, output, session) {
         names(locus_columns) <- locus_column_names
 
         data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
-                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col))
+                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
 
         output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250)), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(data$multilocus, 1, combine_multilocus)
@@ -275,7 +294,7 @@ server <- function(input, output, session) {
         output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
     })
 
-    observeEvent(input$load_new_data_button, {
+    shiny::observeEvent(input$load_new_data_button, {
 
         locus_columns <- c(input$load_new_data_choice_locus_1, input$load_new_data_choice_locus_2, input$load_new_data_choice_locus_3, input$load_new_data_choice_locus_4, 
                           input$load_new_data_choice_locus_5, input$load_new_data_choice_locus_6, input$load_new_data_choice_locus_7, input$load_new_data_choice_locus_8, 
@@ -285,7 +304,7 @@ server <- function(input, output, session) {
         names(locus_columns) <- locus_column_names
 
         new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, 
-            north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col))
+            north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col), sheet = input$load_new_data_sheet)
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250)), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
@@ -296,9 +315,12 @@ server <- function(input, output, session) {
         })
 
         output$load_data_before_match <- shiny::renderText("")
+        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " : "))
+        output$sanity_check <- shiny::renderText("Sanity Check")
+        output$distances_done_message <- shiny::renderText("")
     })
 
-    observeEvent(input$compile_single_new_data, {
+    shiny::observeEvent(input$compile_single_new_data, {
         locus_data <- c(input$load_new_locus_1, input$load_new_locus_2, input$load_new_locus_3, input$load_new_locus_4, input$load_new_locus_5, input$load_new_locus_6, 
                      input$load_new_locus_7, input$load_new_locus_8, input$load_new_locus_9, input$load_new_locus_10, input$load_new_locus_11, input$load_new_locus_12, 
                      input$load_new_locus_13, input$load_new_locus_14, input$load_new_locus_15, input$load_new_locus_16)
@@ -316,15 +338,47 @@ server <- function(input, output, session) {
         })
 
         output$load_data_before_match <- shiny::renderText("")
+        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " : "))
+        output$sanity_check <- shiny::renderText("Sanity Check")
+        output$distances_done_message <- shiny::renderText("")
     })
 
-    observeEvent(input$generate_distances, {
+    shiny::observeEvent(input$generate_distances, {
         distance_function <- dist_euclidian
         if (identical(input$distance_function, "euc")) {
             distance_function <- dist_euclidian
         }
         new_data$distances <<- calculate_new_data_distances(new_data, data, dist_euclidian)
+        output$distances_done_message <- shiny::renderText("Distances Calculated")
+    })
+
+    shiny::observeEvent(input$generate_threshold_plot, {
+        shiny::req(data)
+        shiny::req(new_data)
+
+        output$threshold_plot <- shiny::renderPlot({
+
+        })
+    })
+
+    shiny::observeEvent(input$match_new_against_data, {
+        shiny::req(data)
+        shiny::req(new_data)
+        shiny::req(new_data$distances)
+
+        possible_matches <<- match_new_data(new_data, input$match_threshold)
+
+        for (ind in names(possible_matches)) {
+            shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
+            shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
+            shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
+
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(rownames = FALSE, filter = "top", {
+                generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+            })
+        }
     })
 }
 
 shiny::shinyApp(ui = ui, server = server)
+

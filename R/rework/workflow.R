@@ -28,8 +28,8 @@ data <- load_data(file_path = "~/Downloads/AC_allKorr_h1.csv", index_column = "S
                   meta_columns = c(date = "Funnetdatum", north = "Nord", east = "Ost", gender = "Kon"))
 
 # Option to test one new data point or load a file with multiple
-nda <- "one"
-# nda <- "mul"
+# nda <- "one"
+nda <- "mul"
 
 if (identical(nda, "one")) {
     ## CREATE EXAMPLE DATA ONE POINT
@@ -49,7 +49,7 @@ if (identical(nda, "one")) {
     new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value
-    # threshold_plot <- generate_threshold_plot(new_data)
+    # threshold_plot <- generate_threshold_plot(new_data, data)
 
     threshold <- 20
 
@@ -81,7 +81,7 @@ if (identical(nda, "one")) {
     new_data_batch$distances <- calculate_new_data_distances(new_data_batch, centers, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value - work with batch new
-    # threshold_plot <- generate_threshold_plot(new_data)
+    # threshold_plot <- generate_threshold_plot(new_data, data)
 
     threshold <- 20
 

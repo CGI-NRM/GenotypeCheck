@@ -65,9 +65,10 @@ sanity_check_new_data <- function(new_data, data) {
 
     for (i in seq(nrow(new_data$multilocus))) {
         test_values <- new_data$multilocus[i,]
+
         names(test_values) <- colnames(new_data$multilocus)
         # Rearrange to match the correct locus with each other
-        test_values <- test_values[,colnames(range)]
+        test_values <- test_values[colnames(range)]
         outside_range <- test_values > range["max",] | test_values < range["min",]
         outside_range[is.na(outside_range)] <- FALSE
         if (any(outside_range, na.rm = TRUE)) {
@@ -79,8 +80,10 @@ sanity_check_new_data <- function(new_data, data) {
         problems <- c("Some values are outside of the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.", problems)
     }
 
-    if (sum(is.na(new_data$multilocus)) > 4) {
-        problems <- c(problems, "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset")
+    for (i in seq(nrow(new_data$multilocus))) {
+        if (sum(is.na(new_data$multilocus[i,])) > 4) {
+            problems <- c(problems, paste(new_data$meta$index[i], "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset"))
+        }
     }
 
     if (length(problems) == 0) {
@@ -135,9 +138,23 @@ combine_multilocus <- function(locus) {
         paste0(collapse = " ")
 }
 
+generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
+    df <- data.frame()
+
+    if (identical(possible_matches[[ind]]$id_type, "index")) {
+        df <- data.frame(index = possible_matches[[ind]]$ids)
+    } else if (identical(possible_matches[[ind]]$id_type, "individ")) {
+        df <- data.frame(index = data$meta$index[data$meta$individ %in% possible_matches[[ind]]$ids])
+    }
+
+    # TODO: Add distances and multilocus
+
+    df
+}
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # NOT DONE - NEED HANDELING OF MULTIPLE THINGS
-generate_threshold_plot <- function(all_new_data) {
+generate_threshold_plot <- function(new_data, data) {
     min_dist <- min(new_data$distances$distances, na.rm = TRUE)
     max_dist <- max(new_data$distances$distances, na.rm = TRUE)
 
