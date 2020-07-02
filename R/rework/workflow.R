@@ -5,8 +5,8 @@ source("handle_data.R")
 locus_column_names <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", 
                         "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
 
-locus_columns <- c("G10L", "G10L.1", "Mu05", "Mu05.1", "Mu09", "Mu09.1", "Mu10", "Mu10.1",
-                   "Mu23", "Mu23.1", "Mu50", "Mu50.1", "Mu51", "Mu51.1", "Mu59", "Mu59.1")
+locus_columns <- c("G10L", "G10L.1", "MU05", "MU05.1", "MU09", "MU09.1", "MU10", "MU10.1",
+                   "MU23", "MU23.1", "MU50", "MU50.1", "MU51", "MU51.1", "MU59", "MU59.1")
 
 names(locus_columns) <- locus_column_names
 

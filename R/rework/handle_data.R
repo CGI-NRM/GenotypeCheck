@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyselect)
 library(readxl)
 library(readODS)
 
@@ -126,6 +127,12 @@ calculate_new_data_distances <- function(new_data, data, distance_function) {
     names(distances) <- new_data$meta$index
 
     list(distances = distances, names_type = data$multilocus_names)
+}
+
+combine_multilocus <- function(locus) {
+    locus[is.na(locus)] <- 0
+    locus %>% formatC(width = 3, flag = "0", format = "d") %>%
+        paste0(collapse = " ")
 }
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
