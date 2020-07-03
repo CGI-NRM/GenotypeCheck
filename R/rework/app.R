@@ -110,8 +110,9 @@ ui <- shiny::fluidPage(
                                             shiny::conditionalPanel(condition = "input.generate_threshold_plot > 0",
                                                 shiny::plotOutput(outputId = "threshold_plot")
                                             ),
+                                            shiny::tags$hr(),
                                             shiny::actionButton(inputId = "generate_threshold_plot", label = "Generate Threshold Plot"),
-                                            shiny::tags$br(),
+                                            shiny::tags$hr(),
                                             shiny::numericInput(inputId = "match_threshold", label = "Distance Threshold To Match", value = 0, min = 0),
                                             shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data"),
                                             shiny::textOutput(outputId = "you_need_to_calculate_distances")
@@ -132,9 +133,20 @@ ui <- shiny::fluidPage(
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
                                             shiny::textOutput(outputId = "number_of_one_matches"),
+                                            shiny::tags$br(),
                                             shiny::actionButton(inputId = "merge_one_individ_new_data", label = "Merge The New Data That Only Matched One Individual"),
+                                            shiny::textOutput(outputId = "merge_one_return_message"),
                                             shiny::tags$hr(),
-                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: ")
+                                            shiny::textOutput(outputId = "number_of_zero_matches"),
+                                            shiny::actionButton(inputId = "merge_zero_distance_data", label = "Merge The Data That Matched With Zero Distance"),
+                                            shiny::textOutput(outputId = "merge_zero_return_message"),
+                                            shiny::tags$hr(),
+                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: "),
+                                            shiny::tags$hr(),
+                                            shiny::textInput(inputId = "merge_new_individ_id", label = "New Individ-Id"),
+                                            shiny::actionButton(inputId = "merge_specific", label = "Merge Sample Into Dataset"),
+                                            shiny::tags$br(),
+                                            shiny::textOutput(outputId = "merge_return_message"),
                                         ),
                                         mainPanel = shiny::mainPanel(
                                             shiny::h4(shiny::textOutput(outputId = "merge_info_index")),
@@ -309,6 +321,14 @@ server <- function(input, output, session) {
         data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
                            meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
 
+        update_main_table()
+        
+        output$load_data_hint <- shiny::renderText("")
+
+        output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
+    })
+
+    update_main_table <- function() {
         output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(data$multilocus, 1, combine_multilocus)
             df <- data.frame(multilocus = combined_multilocus)
@@ -316,11 +336,7 @@ server <- function(input, output, session) {
             df <- cbind(index = data$meta$index, df, data$meta[colnames(data$meta) != "index"])
             df
         })
-
-        output$load_data_hint <- shiny::renderText("")
-
-        output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
-    })
+    }
 
     shiny::observeEvent(input$load_new_data_button, {
 
@@ -385,7 +401,7 @@ server <- function(input, output, session) {
         shiny::req(new_data)
 
         output$threshold_plot <- shiny::renderPlot({
-
+            generate_threshold_plot(new_data, data)
         })
     })
 
@@ -406,7 +422,7 @@ server <- function(input, output, session) {
 
         lapply(names(possible_matches), function(ind) {
             if (length(possible_matches[[ind]]$ids) == 0) {
-                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset. This could be a new individual."))
+                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. This could be a new individual."))
             } else {
                 shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
                 output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
@@ -415,10 +431,11 @@ server <- function(input, output, session) {
             }
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
-
         })
 
         output$load_data_and_generate_distances_merge_tab <- shiny::renderText("")
+        output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))), " new data-points that matched only one individual in the original data."))
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances$distances, function(x) { min(x) == 0 }))), " new data-points that matched an existing sample from the original data with zero distance."))
     })
 
     shiny::observeEvent(input$show_details_for_new_data, {
@@ -436,22 +453,107 @@ server <- function(input, output, session) {
 
         output$merge_info_map <- leaflet::renderLeaflet({
 
-            ids <- possible_matches[[ind]]$ids
+            individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
+            ids <- data$meta[data$meta$individ %in% individuals, "index"]
+            ids <- ids[ids != ind]
 
             coords <- list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"]))
             p1 <- sp::SpatialPoints(coords = coords, proj4string = SWEREF99)
             p2 <- sp::coordinates(sp::spTransform(p1, WGS84))
 
             dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
-            individs <- c("NOT MATCHED YET", data$meta[ids, "individ"])
+            individs <- c("CURRENT", data$meta[ids, "individ"])
+            labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", " Date: ", dates, "<br>", " Individual: ", individs)
             labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs)
 
             leaflet::leaflet() %>%
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
                                           options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
-                leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = labels, options = leaflet::popupOptions(closeButton = TRUE)) %>%
-                leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels)
+                leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = individs, options = leaflet::popupOptions(closeButton = TRUE)) %>%
+                leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels_with_br)
         })
+
+        shiny::updateTextInput(session, "merge_new_individ_id", value = "")
+    })
+
+    shiny::observeEvent(input$merge_one_individ_new_data, {
+        merged_data <<- data
+
+        lapply(names(possible_matches)[unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))], function(ind) {
+            new_individ <- data$meta[possible_matches[[ind]]$ids, "individ"][1]
+            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df[ind, "individual"] <- new_individ
+                df
+            })
+        })
+
+        data <<- merged_data
+
+        update_main_table()
+
+        output$merge_one_return_message <- shiny::renderText("Done")
+    })
+
+    shiny::observeEvent(input$merge_zero_distance_data, {
+        merged_data <<- data
+
+        lapply(new_data$meta$index[unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 } ))], function(ind) {
+
+            new_individ <- data$meta[names(sort(unlist(new_data$distances$distances[[ind]])))[1], "individ"]
+            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df[ind, "individual"] <- new_individ
+                df
+            })
+        })
+
+        data <<- merged_data
+
+        update_main_table()
+
+        output$merge_zero_return_message <- shiny::renderText("Done")
+    })
+
+    shiny::observeEvent(input$merge_new_individ_id, {
+        if (!identical(input$merge_new_individ_id, "") & !(input$merge_new_individ_id %in% data$meta$individ)) {
+            output$merge_return_message <- shiny::renderText("The new inidivid-id was not found among the loaded dataset. This will create a new individ, make sure this is what you want to do.")
+        } else {
+            output$merge_return_message <- shiny::renderText("")
+        }
+    })
+
+    shiny::observeEvent(input$merge_specific, {
+        req(input$show_details_for_new_data)
+        if (!(input$show_details_for_new_data %in% new_data$meta$index)) {
+            output$merge_return_message <- shiny::renderText("The specified index is not found in the new data.")
+            return()
+        }
+        req(input$merge_new_individ_id)
+
+        ind <- input$show_details_for_new_data
+
+        merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id)
+
+        output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+            df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+            df[ind, "individual"] <- input$merge_new_individ_id
+            df
+        })
+
+        data <<- merged_data$data
+
+        if (any(merged_data$success)) {
+            output$merge_return_message <- shiny::renderText("New data successfully merged with data.")
+        } else {
+            output$merge_return_message <- shiny::renderText("There was an error trying to merge the new data.")
+        }
+
+        update_main_table()
     })
 }
 

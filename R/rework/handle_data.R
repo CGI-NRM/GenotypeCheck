@@ -94,16 +94,16 @@ sanity_check_new_data <- function(new_data, data) {
     }
 }
 
-calculate_individ_centers <- function(data) {
-    individs <- aggregate(data$multilocus, list(data$meta$individ), mean)
-    rownames(individs) <- individs[,1]
-    individs[,1] <- NULL
+# calculate_individ_centers <- function(data) {
+#     individs <- aggregate(data$multilocus, list(data$meta$individ), mean)
+#     rownames(individs) <- individs[,1]
+#     individs[,1] <- NULL
 
-    # Speeds up operations
-    individs <- apply(individs, 1:2, as.integer)
+#     # Speeds up operations
+#     individs <- apply(individs, 1:2, as.integer)
 
-    list(multilocus = individs, multilocus_names = "individ")
-}
+#     list(multilocus = individs, multilocus_names = "individ")
+# }
 
 # A list with two vectors, each containing the locuses of the different samples
 # Example:
@@ -141,26 +141,25 @@ combine_multilocus <- function(locus) {
 }
 
 generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
-    df <- data.frame(index = c(ind))
+    individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
+    ids <- data$meta[data$meta$individ %in% individuals, "index"]
+    ids <- ids[ids != ind]
 
-    if (identical(possible_matches[[ind]]$id_type, "index")) {
-        df <- rbind(df, data.frame(index = possible_matches[[ind]]$ids))
+    df <- data.frame(index = c(ind, ids))
 
-        multi <- combine_multilocus(new_data$multilocus[ind,])
-        multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus, 1, combine_multilocus)[possible_matches[[ind]]$ids]))
+    multi <- combine_multilocus(new_data$multilocus[ind,])
+    multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus, 1, combine_multilocus)[ids]))
 
-        distance <- c(NA, new_data$distances$distances[[ind]][possible_matches[[ind]]$ids])
-        names(distance)[1] <- ind
+    distance <- c(NA, new_data$distances$distances[[ind]][ids])
+    names(distance)[1] <- ind
 
-        indi <- c(NA, data$meta[possible_matches[[ind]]$ids,"individ"])
-        names(indi)[1] <- ind
+    indi <- c(NA, data$meta[ids,"individ"])
+    names(indi)[1] <- ind
 
-        df <- cbind(df, multi, distance, indi)
-        df <- df[order(df$distance, na.last = FALSE),]
-        colnames(df) <- c("index", "multilocus", "distance", "individual")
-    } else if (identical(possible_matches[[ind]]$id_type, "individ")) {
-        df <- rbind(df, data.frame(index = data$meta$index[data$meta$individ %in% possible_matches[[ind]]$ids]))
-    }
+    df <- cbind(df, multi, distance, indi)
+    df <- df[order(df$distance, na.last = FALSE),]
+    colnames(df) <- c("index", "multilocus", "locus distance", "individual")
+    rownames(df) <- df$index
 
     df
 }
@@ -201,7 +200,15 @@ merge_new_data <- function(new_data, data, new_data_id) {
         return(list(data = data, success = FALSE))
     }
 
-    data$multilocus <- data$multilocus %>% rbind(new_data$multilocus)
+    if (new_data$meta$index[1] %in% data$meta$index) {
+        return(list(data = data, success = FALSE))
+    }
+
+    df_multi <- data.frame(as.list(new_data$multilocus))
+    rownames(df_multi) <- new_data$meta$index
+    colnames(df_multi) <- colnames(data$multilocus)
+    print(df_multi)
+    data$multilocus <- data$multilocus %>% rbind(df_multi)
     new_data$meta$individ <- new_data_id
     data$meta <- data$meta %>% rbind(new_data$meta)
 
