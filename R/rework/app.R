@@ -1,5 +1,8 @@
 source("handle_data.R")
 
+SWEREF99 <- sp::CRS("+init=epsg:3006")
+WGS84 <- sp::CRS("+init=epsg:4326")
+
 locus_column_names <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", 
                         "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
 
@@ -14,7 +17,7 @@ ui <- shiny::fluidPage(
                 shiny::column(width = 12,
                     shiny::h3("Dataset"),
                     shiny::sidebarLayout(
-                        sidebarPanel = shiny::sidebarPanel(width = 3,
+                        sidebarPanel = shiny::sidebarPanel(width = 2,
                             shiny::fileInput(inputId = "data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
                             shiny::uiOutput(outputId = "load_data_sheet"),
                             shiny::uiOutput(outputId = "load_data_choice"),
@@ -108,11 +111,35 @@ ui <- shiny::fluidPage(
                                                 shiny::plotOutput(outputId = "threshold_plot")
                                             ),
                                             shiny::actionButton(inputId = "generate_threshold_plot", label = "Generate Threshold Plot"),
+                                            shiny::tags$br(),
                                             shiny::numericInput(inputId = "match_threshold", label = "Distance Threshold To Match", value = 0, min = 0),
-                                            shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data")
+                                            shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data"),
+                                            shiny::textOutput(outputId = "you_need_to_calculate_distances")
                                         ),
                                         mainPanel = shiny::mainPanel(
                                             shiny::div(id = "show_matches")
+                                        )
+                                    )
+                                )
+                            )
+                        ),
+                        shiny::tabPanel(
+                            title = "Merge And View Details", value = "merge_new_data_and_view_details",
+                            shiny::fluidRow(
+                                shiny::column(width = 12,
+                                    shiny::tags$br(),
+                                    shiny::h4(shiny::textOutput(outputId = "load_data_and_generate_distances_merge_tab")),
+                                    shiny::sidebarLayout(
+                                        sidebarPanel = shiny::sidebarPanel(width = 3,
+                                            shiny::textOutput(outputId = "number_of_one_matches"),
+                                            shiny::actionButton(inputId = "merge_one_individ_new_data", label = "Merge The New Data That Only Matched One Individual"),
+                                            shiny::tags$hr(),
+                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: ")
+                                        ),
+                                        mainPanel = shiny::mainPanel(
+                                            shiny::h4(shiny::textOutput(outputId = "merge_info_index")),
+                                            DT::dataTableOutput(outputId = "merge_info_data_table"),
+                                            leaflet::leafletOutput(outputId = "merge_info_map")
                                         )
                                     )
                                 )
@@ -127,12 +154,13 @@ ui <- shiny::fluidPage(
 
 server <- function(input, output, session) {
 
-    data <- list()
-    new_data <- list()
-    possible_matches <- list()
+    data <- NULL
+    new_data <- NULL
+    possible_matches <- NULL
 
     output$load_data_hint <- shiny::renderText("You Need To Load The Dataset Before You Can Match New Data Against It")
     output$load_data_before_match <- shiny::renderText("You Need To Load Some New Data Before You Can Match It Against The Dataset") 
+    output$load_data_and_generate_distances_merge_tab <- shiny::renderText("You Need To Load Data And Match New Data Against It Before You Can Use This Tab")
 
     shiny::observeEvent(input$data_file, {
         shiny::req(input$data_file)
@@ -281,7 +309,7 @@ server <- function(input, output, session) {
         data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
                            meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
 
-        output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250)), rownames = FALSE, filter = "top", {
+        output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(data$multilocus, 1, combine_multilocus)
             df <- data.frame(multilocus = combined_multilocus)
             rownames(df) <- names(combined_multilocus)
@@ -306,7 +334,7 @@ server <- function(input, output, session) {
         new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, 
             north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col), sheet = input$load_new_data_sheet)
 
-        output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250)), rownames = FALSE, filter = "top", {
+        output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
             df <- data.frame(multilocus = combined_multilocus)
             rownames(df) <- names(combined_multilocus)
@@ -329,7 +357,7 @@ server <- function(input, output, session) {
         
         new_data <<- create_new_data(input$load_new_index, multilocus = locus_data, meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender))
 
-        output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250)), rownames = FALSE, filter = "top", {
+        output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
             df <- data.frame(multilocus = combined_multilocus)
             rownames(df) <- names(combined_multilocus)
@@ -362,20 +390,67 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$match_new_against_data, {
+        if (is.null(data) | is.null(new_data)) {
+            output$you_need_to_calculate_distances <- shiny::renderText("You need to load a dataset and some new data first.")
+        }
         shiny::req(data)
         shiny::req(new_data)
+        if (is.null(new_data$distances)) {
+            output$you_need_to_calculate_distances <- shiny::renderText("You need to calculate the distances before you can match the new data.")
+        }
         shiny::req(new_data$distances)
+
+        output$you_need_to_calculate_distances <- shiny::renderText("")
 
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
         lapply(names(possible_matches), function(ind) {
-            shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
+            if (length(possible_matches[[ind]]$ids) == 0) {
+                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset. This could be a new individual."))
+            } else {
+                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
+                output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+                    generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                })
+            }
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
 
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(rownames = FALSE, {
-                generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-            })
+        })
+
+        output$load_data_and_generate_distances_merge_tab <- shiny::renderText("")
+    })
+
+    shiny::observeEvent(input$show_details_for_new_data, {
+        req(input$show_details_for_new_data)
+        if (!(input$show_details_for_new_data %in% new_data$meta$index)) {
+            return()
+        }
+
+        ind <- input$show_details_for_new_data
+
+        output$merge_info_index <- shiny::renderText(paste0("Showing Details for: ", ind))
+        output$merge_info_data_table <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+            generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+        })
+
+        output$merge_info_map <- leaflet::renderLeaflet({
+
+            ids <- possible_matches[[ind]]$ids
+
+            coords <- list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"]))
+            p1 <- sp::SpatialPoints(coords = coords, proj4string = SWEREF99)
+            p2 <- sp::coordinates(sp::spTransform(p1, WGS84))
+
+            dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
+            individs <- c("NOT MATCHED YET", data$meta[ids, "individ"])
+            labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs)
+
+            leaflet::leaflet() %>%
+                leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
+                                          options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
+                leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = labels, options = leaflet::popupOptions(closeButton = TRUE)) %>%
+                leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels)
         })
     })
 }

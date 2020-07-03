@@ -1,5 +1,5 @@
 library(dplyr)
-library(tidyselect)
+# library(tidyselect)
 library(readxl)
 library(readODS)
 
@@ -9,7 +9,7 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
     } else if (endsWith(file_path, ".ods")) {
         raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else {
-        raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",")
+        raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
 
     if (raw_data %>% select(all_of(index_column)) %>% duplicated() %>% sum() >= 1) {
@@ -24,8 +24,9 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
     colnames(meta_data) <- c("index", names(meta_columns), "individ")
     rownames(meta_data) <- meta_data$index
 
+    # apply(c(1, 2) <- is this needed? 
     locus_data <- data.frame(raw_data %>% select(all_of(locus_columns))) %>%
-        apply(c(1, 2), as.numeric)
+        apply(1:2, as.numeric)
     colnames(locus_data) <- c(names(locus_columns))
     rownames(locus_data) <- meta_data$index
     locus_data <- locus_data[,sort(colnames(locus_data))]
@@ -98,7 +99,8 @@ calculate_individ_centers <- function(data) {
     rownames(individs) <- individs[,1]
     individs[,1] <- NULL
 
-    individs <- apply(individs, c(1, 2), as.integer)
+    # Speeds up operations
+    individs <- apply(individs, 1:2, as.integer)
 
     list(multilocus = individs, multilocus_names = "individ")
 }
@@ -143,15 +145,22 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 
     if (identical(possible_matches[[ind]]$id_type, "index")) {
         df <- rbind(df, data.frame(index = possible_matches[[ind]]$ids))
+
         multi <- combine_multilocus(new_data$multilocus[ind,])
-        multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus[possible_matches[[ind]]$ids,], 1, combine_multilocus)))
-        df <- cbind(df, multi)
-        colnames(df) <- c("index", "multilocus")
+        multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus, 1, combine_multilocus)[possible_matches[[ind]]$ids]))
+
+        distance <- c(NA, new_data$distances$distances[[ind]][possible_matches[[ind]]$ids])
+        names(distance)[1] <- ind
+
+        indi <- c(NA, data$meta[possible_matches[[ind]]$ids,"individ"])
+        names(indi)[1] <- ind
+
+        df <- cbind(df, multi, distance, indi)
+        df <- df[order(df$distance, na.last = FALSE),]
+        colnames(df) <- c("index", "multilocus", "distance", "individual")
     } else if (identical(possible_matches[[ind]]$id_type, "individ")) {
         df <- rbind(df, data.frame(index = data$meta$index[data$meta$individ %in% possible_matches[[ind]]$ids]))
     }
-
-    # TODO: Add distances and multilocus
 
     df
 }

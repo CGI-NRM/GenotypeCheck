@@ -43,15 +43,19 @@ if (identical(nda, "one")) {
     print(sanity_message)
     # Display sanite message to user
 
+    # Not using this due to complications later with a lot of tests
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+    # TODO :: TODO :: Remove id_type - Evt: Rewrite code to not use $ids everywhere
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
     # Calculate the center of each individ, this is optional way of doing things, might be better as an individ could expand othervise
-    centers <- calculate_individ_centers(data)
+    # centers <- calculate_individ_centers(data)
 
     new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value
     # threshold_plot <- generate_threshold_plot(new_data, data)
 
-    threshold <- 20
+    threshold <- 10
 
     possible_matches <- match_new_data(new_data, threshold)
 
@@ -75,15 +79,16 @@ if (identical(nda, "one")) {
     sanity_message <- sanity_check_new_data(new_data_batch, data)
     print(sanity_message)
 
+    # TODO :: See todo at other center caulclation
     # Calculate the center of each individ, this is optional way of doing things, might be better as an individ could expand othervise
-    centers <- calculate_individ_centers(data)
+    # centers <- calculate_individ_centers(data)
 
-    new_data_batch$distances <- calculate_new_data_distances(new_data_batch, centers, dist_euclidian)
+    new_data_batch$distances <- calculate_new_data_distances(new_data_batch, data, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value - work with batch new
     # threshold_plot <- generate_threshold_plot(new_data, data)
 
-    threshold <- 20
+    threshold <- 10
 
     possible_matches <- match_new_data(new_data_batch, threshold)
 
