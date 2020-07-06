@@ -120,12 +120,13 @@ dist_euclidian <- function(multilocus1, multilocus2) {
 calculate_new_data_distances <- function(new_data, data, distance_function) {
 
     distances <- list()
-    data_rows <- split(data$multilocus, seq(nrow(data$multilocus)))
-    multilocus_rows <- 
+    combined_data <- rbind(data$multilocus, new_data$multilocus)
+    data_rows <- split(combined_data, seq(nrow(combined_data)))
 
     for (ndata_row in seq(nrow(new_data$multilocus))) {
         distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row])
-        names(distance) <- rownames(data$multilocus)
+        names(distance) <- rownames(combined_data)
+        distance <- distance[names(distance) != new_data$meta$index[ndata_row]]
         distances <- append(distances, list(distance))
     }
 
@@ -143,18 +144,24 @@ combine_multilocus <- function(locus) {
 generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
     individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
     ids <- data$meta[data$meta$individ %in% individuals, "index"]
+    ids <- unique(c(ids, possible_matches[[ind]]$ids))
     ids <- ids[ids != ind]
 
     df <- data.frame(index = c(ind, ids))
 
+    combined_data <- rbind(new_data$multilocus, data$multilocus)
+
     multi <- combine_multilocus(new_data$multilocus[ind,])
-    multi <- rbind(multi, data.frame(multilocus = apply(data$multilocus, 1, combine_multilocus)[ids]))
+    multi <- rbind(multi, data.frame(multilocus = apply(combined_data, 1, combine_multilocus)[ids]))
 
     distance <- c(NA, new_data$distances$distances[[ind]][ids])
     names(distance)[1] <- ind
 
     indi <- c(NA, data$meta[ids,"individ"])
     names(indi)[1] <- ind
+    if (!is.na(data$meta[ind, "individ"])) {
+        indi[1] <- data$meta[ind, "individ"]
+    }
 
     df <- cbind(df, multi, distance, indi)
     df <- df[order(df$distance, na.last = FALSE),]
@@ -207,7 +214,6 @@ merge_new_data <- function(new_data, data, new_data_id) {
     df_multi <- data.frame(as.list(new_data$multilocus))
     rownames(df_multi) <- new_data$meta$index
     colnames(df_multi) <- colnames(data$multilocus)
-    print(df_multi)
     data$multilocus <- data$multilocus %>% rbind(df_multi)
     new_data$meta$individ <- new_data_id
     data$meta <- data$meta %>% rbind(new_data$meta)

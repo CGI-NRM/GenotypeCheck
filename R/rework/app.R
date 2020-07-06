@@ -138,20 +138,25 @@ ui <- shiny::fluidPage(
                                             shiny::textOutput(outputId = "merge_one_return_message"),
                                             shiny::tags$hr(),
                                             shiny::textOutput(outputId = "number_of_zero_matches"),
+                                            shiny::tags$br(),
                                             shiny::actionButton(inputId = "merge_zero_distance_data", label = "Merge The Data That Matched With Zero Distance"),
                                             shiny::textOutput(outputId = "merge_zero_return_message"),
                                             shiny::tags$hr(),
                                             shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: "),
                                             shiny::tags$hr(),
-                                            shiny::textInput(inputId = "merge_new_individ_id", label = "New Individ-Id"),
+                                            shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
+                                                shiny::uiOutput(outputId = "merge_new_individ_id")
+                                            ),
                                             shiny::actionButton(inputId = "merge_specific", label = "Merge Sample Into Dataset"),
                                             shiny::tags$br(),
                                             shiny::textOutput(outputId = "merge_return_message"),
                                         ),
                                         mainPanel = shiny::mainPanel(
-                                            shiny::h4(shiny::textOutput(outputId = "merge_info_index")),
-                                            DT::dataTableOutput(outputId = "merge_info_data_table"),
-                                            leaflet::leafletOutput(outputId = "merge_info_map")
+                                            shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
+                                                shiny::h4(shiny::textOutput(outputId = "merge_info_index")),
+                                                DT::dataTableOutput(outputId = "merge_info_data_table"),
+                                                leaflet::leafletOutput(outputId = "merge_info_map")
+                                            )
                                         )
                                     )
                                 )
@@ -421,8 +426,8 @@ server <- function(input, output, session) {
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
         lapply(names(possible_matches), function(ind) {
-            if (length(possible_matches[[ind]]$ids) == 0) {
-                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. This could be a new individual."))
+            if (length(possible_matches[[ind]]$ids) <= 1) {
+                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. This could be a new individual or the threshold could be to low."))
             } else {
                 shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
                 output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
@@ -473,19 +478,32 @@ server <- function(input, output, session) {
                 leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels_with_br)
         })
 
-        shiny::updateTextInput(session, "merge_new_individ_id", value = "")
+        output$merge_new_individ_id <- shiny::renderUI({
+            choices <- c(unique(data$meta[possible_matches[[ind]]$ids, "individ"]))
+            choices <- choices[!is.na(choices)]
+            combined_data <- rbind(data$meta, new_data$meta)
+            nrm_ids <- combined_data$individ[startsWith(combined_data$individ, "NRM_")]
+            if (sum(!is.na(nrm_ids)) == 0) {
+                max_nrm_num_id <- 0
+            } else {
+                max_nrm_num_id <- max(as.numeric(gsub("^.*?_", "", nrm_ids)), na.rm = TRUE)
+            }
+            choices <- c(choices, paste0("NRM_", max_nrm_num_id + 1))
+            shiny::selectInput(inputId = "merge_new_individ_id_select", label = "New Individ-Id", choices = choices)
+        })
+        # shiny::updateTextInput(session, "merge_new_individ_id", value = "")
     })
 
     shiny::observeEvent(input$merge_one_individ_new_data, {
         merged_data <<- data
 
-        lapply(names(possible_matches)[unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))], function(ind) {
+        lapply(names(possible_matches), function(ind) {
+        # lapply(names(possible_matches)[unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))], function(ind) {
             new_individ <- data$meta[possible_matches[[ind]]$ids, "individ"][1]
             merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
 
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                df[ind, "individual"] <- new_individ
                 df
             })
         })
@@ -500,14 +518,14 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$merge_zero_distance_data, {
         merged_data <<- data
 
-        lapply(new_data$meta$index[unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 } ))], function(ind) {
+        lapply(names(possible_matches), function(ind) {
+        # lapply(new_data$meta$index[unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 } ))], function(ind) {
 
             new_individ <- data$meta[names(sort(unlist(new_data$distances$distances[[ind]])))[1], "individ"]
             merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
 
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                df[ind, "individual"] <- new_individ
                 df
             })
         })
@@ -520,8 +538,8 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$merge_new_individ_id, {
-        if (!identical(input$merge_new_individ_id, "") & !(input$merge_new_individ_id %in% data$meta$individ)) {
-            output$merge_return_message <- shiny::renderText("The new inidivid-id was not found among the loaded dataset. This will create a new individ, make sure this is what you want to do.")
+        if (!identical(input$merge_new_individ_id_select, "") & !(input$merge_new_individ_id_select %in% data$meta$individ)) {
+            output$merge_return_message <- shiny::renderText("The new inidivid-id was not found among the existing individuals. This will create a new individ, make sure this is what you want to do.")
         } else {
             output$merge_return_message <- shiny::renderText("")
         }
@@ -533,19 +551,21 @@ server <- function(input, output, session) {
             output$merge_return_message <- shiny::renderText("The specified index is not found in the new data.")
             return()
         }
-        req(input$merge_new_individ_id)
+        req(input$merge_new_individ_id_select)
 
         ind <- input$show_details_for_new_data
 
-        merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id)
+        merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id_select)
+        data <<- merged_data$data
 
-        output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
-            df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-            df[ind, "individual"] <- input$merge_new_individ_id
-            df
+        lapply(names(possible_matches), function(ind) {
+        # lapply(new_data$meta$index[data$meta[new_data$meta$index, "individ"] %in% data$meta[ind, "individ"]], function (ind) {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df
+            })
         })
 
-        data <<- merged_data$data
 
         if (any(merged_data$success)) {
             output$merge_return_message <- shiny::renderText("New data successfully merged with data.")
@@ -554,6 +574,7 @@ server <- function(input, output, session) {
         }
 
         update_main_table()
+        shiny::updateTextInput(session, inputId = "show_details_for_new_data", value = "")
     })
 }
 
