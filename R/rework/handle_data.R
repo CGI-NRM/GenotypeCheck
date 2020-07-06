@@ -47,12 +47,13 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     colnames(meta_data) <- c("index", names(meta), "individ")
     rownames(meta_data) <- c(index)
 
-    ndata <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), distances = list(distances = c(NULL), names_type = c(NULL)))
+    ndata <- list(multilocus = locus_data, meta = meta_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), 
+        distances = list(distances = c(NULL), names_type = c(NULL)))
     ndata
 }
 
 create_new_data_batch <- function(file_path, index_column, locus_columns, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
-    load_data(file_path = file_path, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns, na_strings = na_strings, sheet = sheet)
+    new_data <- load_data(file_path = file_path, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns, na_strings = na_strings, sheet = sheet)
 }
 
 sanity_check_new_data <- function(new_data, data) {
@@ -87,23 +88,18 @@ sanity_check_new_data <- function(new_data, data) {
         }
     }
 
+    for (new_ind in new_data$meta$index) {
+        if (new_ind %in% data$meta$index) {
+            problems <- c(problems, paste(new_ind, " already exists in the loaded data. Be aware that the program cannot handle this and it may lead to crashes and/or weird behaviour."))
+        }
+    }
+
     if (length(problems) == 0) {
         return("No problems were found with the new data.")
     } else {
         return(problems)
     }
 }
-
-# calculate_individ_centers <- function(data) {
-#     individs <- aggregate(data$multilocus, list(data$meta$individ), mean)
-#     rownames(individs) <- individs[,1]
-#     individs[,1] <- NULL
-
-#     # Speeds up operations
-#     individs <- apply(individs, 1:2, as.integer)
-
-#     list(multilocus = individs, multilocus_names = "individ")
-# }
 
 # A list with two vectors, each containing the locuses of the different samples
 # Example:
@@ -174,11 +170,35 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # NOT DONE - NEED HANDELING OF MULTIPLE THINGS
 generate_threshold_plot <- function(new_data, data) {
-    min_dist <- min(new_data$distances$distances, na.rm = TRUE)
-    max_dist <- max(new_data$distances$distances, na.rm = TRUE)
+    min_dist <- min(unlist(new_data$distances$distances))
+    # max_dist <- max(unlist(new_data$distances$distances))
+    max_dist <- max(unlist(lapply(new_data$meta$index, function(ind) {
+        sum(sort(new_data$distances$distances[[ind]])[1:2])
+    })))
 
-    pl <- list(thre = min_dist + (max_dist - min_dist) * seq(0, 1, 0.01))
-    pl
+    temp_thres <- min_dist + (max_dist - min_dist) * seq(0, 1, 0.01)
+    matches <- unlist(lapply(temp_thres, function(thres) { 
+        sum(
+            unlist(lapply(new_data$meta$index, function(ind) {
+                ids <- names(new_data$distances$distances[[ind]])[new_data$distances$distances[[ind]] <= thres]
+                ids <- ids[ids %in% data$meta$index]
+                length(unique(data$meta[ids, "individ"])) >= 2
+            }))
+        )
+    }))
+    unmatched <- unlist(lapply(temp_thres, function(thres) { 
+        sum(
+            unlist(lapply(new_data$meta$index, function(ind) {
+                ids <- names(new_data$distances$distances[[ind]])[new_data$distances$distances[[ind]] <= thres]
+                ids <- ids[ids %in% data$meta$index]
+                length(unique(data$meta[ids, "individ"])) == 0
+            }))
+        )
+    }))
+
+    plot(x = temp_thres, y = matches, xlab = "Threshold", ylab = "Number Of Multiple Matches", col = "red", pch = 15)
+    points(x = temp_thres, y = unmatched, xlab = "Threshold", ylab = "Numebr Of Unmatches", col = "blue", pch = 16)
+    legend(x = "right", y = (min(temp_thres) + max(temp_thres)) / 2, legend = c("Non-matches", "Multiple Matches"), col = c("blue", "red"), lty = 1, pch = 15:16)
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

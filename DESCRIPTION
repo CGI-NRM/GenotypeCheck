@@ -16,4 +16,4 @@ Imports:
   readODS,
   rgdal,
   shiny,
-  zeallot
+  stringr

@@ -10,6 +10,10 @@ ui <- shiny::fluidPage(
 
     shiny::titlePanel("Match Genotype"),
 
+    shiny::actionButton(inputId = "save", label = "Save Changes"),
+    shiny::actionButton(inputId = "export", label = "Export New Individuals"),
+    shiny::tags$hr(),
+
     shiny::tabsetPanel(
         shiny::tabPanel(
             title = "Load Dataset", value = "load_dataset",
@@ -43,7 +47,8 @@ ui <- shiny::fluidPage(
                                 shiny::column(width = 12,
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
-                                            shiny::radioButtons(inputId = "load_data_type", label = "Load Data Type", choices = c("Single/Manual" = "single", "Multiple/File" = "file"), selected = "single", inline = TRUE),
+                                            shiny::radioButtons(inputId = "load_data_type", label = "Load Data Type", choices = c("Single/Manual" = "single", "Multiple/File" = "file"), 
+                                                selected = "single", inline = TRUE),
                                             shiny::conditionalPanel(condition = "input.load_data_type == 'single'",
                                                 shiny::textInput(inputId = "load_new_index", label = "Index: "),
                                                 shiny::splitLayout(
@@ -79,7 +84,8 @@ ui <- shiny::fluidPage(
                                                 shiny::actionButton(inputId = "compile_single_new_data", label = "Compile New Data")
                                             ),
                                             shiny::conditionalPanel(condition = "input.load_data_type == 'file'",
-                                                shiny::fileInput(inputId = "new_data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
+                                                shiny::fileInput(inputId = "new_data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", 
+                                                    ".csv", ".xls", ".xlsx", ".ods")),
                                                 shiny::uiOutput(outputId = "load_new_data_sheet"),
                                                 shiny::uiOutput(outputId = "load_new_data_choice"),
                                                 shiny::uiOutput(outputId = "load_new_data_locuses"),
@@ -315,7 +321,6 @@ server <- function(input, output, session) {
     }
 
     shiny::observeEvent(input$load_data_button, {
-
         locus_columns <- c(input$load_data_choice_locus_1, input$load_data_choice_locus_2, input$load_data_choice_locus_3, input$load_data_choice_locus_4, 
                           input$load_data_choice_locus_5, input$load_data_choice_locus_6, input$load_data_choice_locus_7, input$load_data_choice_locus_8, 
                           input$load_data_choice_locus_9, input$load_data_choice_locus_10, input$load_data_choice_locus_11, input$load_data_choice_locus_12,
@@ -324,7 +329,8 @@ server <- function(input, output, session) {
         names(locus_columns) <- locus_column_names
 
         data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
-                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
+                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, 
+                           gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
 
         update_main_table()
         
@@ -352,7 +358,8 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, 
+        new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, 
+            meta_columns = c(date = input$load_new_data_choice_date_col, 
             north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col), sheet = input$load_new_data_sheet)
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
@@ -376,7 +383,8 @@ server <- function(input, output, session) {
 
         names(locus_data) <- locus_column_names
         
-        new_data <<- create_new_data(input$load_new_index, multilocus = locus_data, meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender))
+        new_data <<- create_new_data(input$load_new_index, multilocus = locus_data, 
+            meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
@@ -404,6 +412,7 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$generate_threshold_plot, {
         shiny::req(data)
         shiny::req(new_data)
+        shiny::req(new_data$distances$distances)
 
         output$threshold_plot <- shiny::renderPlot({
             generate_threshold_plot(new_data, data)
@@ -425,9 +434,10 @@ server <- function(input, output, session) {
 
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
-        lapply(names(possible_matches), function(ind) {
+        lapply(new_data$meta$index, function(ind) {
             if (length(possible_matches[[ind]]$ids) <= 1) {
-                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. This could be a new individual or the threshold could be to low."))
+                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. 
+                    This could be a new individual or the threshold could be to low."))
             } else {
                 shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
                 output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
@@ -439,12 +449,14 @@ server <- function(input, output, session) {
         })
 
         output$load_data_and_generate_distances_merge_tab <- shiny::renderText("")
-        output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))), " new data-points that matched only one individual in the original data."))
-        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances$distances, function(x) { min(x) == 0 }))), " new data-points that matched an existing sample from the original data with zero distance."))
+        output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))), 
+            " new data-points that matched only one individual in the original data."))
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances$distances, function(x) { min(x) == 0 }))), 
+            " new data-points that matched an existing sample from the original data with zero distance."))
     })
 
     shiny::observeEvent(input$show_details_for_new_data, {
-        req(input$show_details_for_new_data)
+        shiny::req(input$show_details_for_new_data)
         if (!(input$show_details_for_new_data %in% new_data$meta$index)) {
             return()
         }
@@ -491,13 +503,12 @@ server <- function(input, output, session) {
             choices <- c(choices, paste0("NRM_", max_nrm_num_id + 1))
             shiny::selectInput(inputId = "merge_new_individ_id_select", label = "New Individ-Id", choices = choices)
         })
-        # shiny::updateTextInput(session, "merge_new_individ_id", value = "")
     })
 
     shiny::observeEvent(input$merge_one_individ_new_data, {
         merged_data <<- data
 
-        lapply(names(possible_matches), function(ind) {
+        lapply(rev(new_data$meta$index), function(ind) {
         # lapply(names(possible_matches)[unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))], function(ind) {
             new_individ <- data$meta[possible_matches[[ind]]$ids, "individ"][1]
             merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
@@ -518,9 +529,8 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$merge_zero_distance_data, {
         merged_data <<- data
 
-        lapply(names(possible_matches), function(ind) {
+        lapply(rev(new_data$meta$index), function(ind) {
         # lapply(new_data$meta$index[unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 } ))], function(ind) {
-
             new_individ <- data$meta[names(sort(unlist(new_data$distances$distances[[ind]])))[1], "individ"]
             merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
 
@@ -546,19 +556,19 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$merge_specific, {
-        req(input$show_details_for_new_data)
+        shiny::req(input$show_details_for_new_data)
         if (!(input$show_details_for_new_data %in% new_data$meta$index)) {
             output$merge_return_message <- shiny::renderText("The specified index is not found in the new data.")
             return()
         }
-        req(input$merge_new_individ_id_select)
+        shiny::req(input$merge_new_individ_id_select)
 
         ind <- input$show_details_for_new_data
 
         merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id_select)
         data <<- merged_data$data
 
-        lapply(names(possible_matches), function(ind) {
+        lapply(rev(new_data$meta$index), function(ind) {
         # lapply(new_data$meta$index[data$meta[new_data$meta$index, "individ"] %in% data$meta[ind, "individ"]], function (ind) {
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
@@ -575,6 +585,20 @@ server <- function(input, output, session) {
 
         update_main_table()
         shiny::updateTextInput(session, inputId = "show_details_for_new_data", value = "")
+    })
+
+    shiny::observeEvent(input$save, {
+        system(sprintf("cp %s %s", input$data_file$datapath, paste0("~/Downloads/backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name)))
+
+        write.csv(
+            x = cbind(data$meta, data$multilocus),
+            file = paste0("~/Downloads/", input$data_file$name),
+            row.names = FALSE, quote = FALSE
+        )
+    })
+
+    shiny::observeEvent(input$export, {
+
     })
 }
 
