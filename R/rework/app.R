@@ -440,7 +440,7 @@ server <- function(input, output, session) {
                     This could be a new individual or the threshold could be to low."))
             } else {
                 shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
-                output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+                output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
                     generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 })
             }
@@ -508,18 +508,27 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$merge_one_individ_new_data, {
         merged_data <<- data
 
-        lapply(rev(new_data$meta$index), function(ind) {
-        # lapply(names(possible_matches)[unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))], function(ind) {
-            new_individ <- data$meta[possible_matches[[ind]]$ids, "individ"][1]
-            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+        one_individ_match <- unlist(lapply(new_data$meta$index, function(ind) {
+            individs <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
+            individs <- individs[!is.na(individs)]
+            length(individs) == 1
+        }))
 
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+        lapply(new_data$meta$index[one_individ_match], function (ind) {
+            individs <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
+            new_individ <- individs[!is.na(individs)][1]
+
+            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+        })
+
+        data <<- merged_data
+
+        lapply(new_data$meta$index, function(ind) {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 df
             })
         })
-
-        data <<- merged_data
 
         update_main_table()
 
@@ -529,18 +538,23 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$merge_zero_distance_data, {
         merged_data <<- data
 
-        lapply(rev(new_data$meta$index), function(ind) {
-        # lapply(new_data$meta$index[unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 } ))], function(ind) {
-            new_individ <- data$meta[names(sort(unlist(new_data$distances$distances[[ind]])))[1], "individ"]
-            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+        have_zero <- unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 }))
+        lapply(new_data$meta$index[have_zero], function(ind) {
+            indexes <- names(new_data$distances$distances[[ind]][new_data$distances$distances[[ind]] == 0])
+            new_individ <- data$meta[indexes, "individ"] 
+            new_individ <- new_individ[!is.na(new_individ)][1]
 
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+        })
+
+        data <<- merged_data
+
+        lapply(new_data$meta$index, function(ind) {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 df
             })
         })
-
-        data <<- merged_data
 
         update_main_table()
 
@@ -570,7 +584,7 @@ server <- function(input, output, session) {
 
         lapply(rev(new_data$meta$index), function(ind) {
         # lapply(new_data$meta$index[data$meta[new_data$meta$index, "individ"] %in% data$meta[ind, "individ"]], function (ind) {
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
                 df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 df
             })
@@ -598,7 +612,11 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$export, {
-
+        write.csv(
+            x = cbind(data$meta[new_data$meta$index %in% data$meta$index,], new_data$multilocus[new_data$meta$index %in% data$meta$index,]),
+            file = paste0("~/Downloads/data_export_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
+            row.names = FALSE, quote = FALSE
+        )
     })
 }
 
