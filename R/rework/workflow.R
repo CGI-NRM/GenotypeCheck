@@ -10,9 +10,6 @@ locus_columns <- c("G10L", "G10L.1", "MU05", "MU05.1", "MU09", "MU09.1", "MU10",
 
 names(locus_columns) <- locus_column_names
 
-# LOAD THE DATA
-
-
 # -x-x-x-x-x-x-x-x-x-x-x-x-x-
 #  - - - - - - - - - - - - - 
 # ---------------------------

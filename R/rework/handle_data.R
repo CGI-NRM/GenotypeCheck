@@ -1,5 +1,4 @@
 library(dplyr)
-# library(tidyselect)
 library(readxl)
 library(readODS)
 
@@ -12,20 +11,20 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
         raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
 
-    if (raw_data %>% select(all_of(index_column)) %>% duplicated() %>% sum() >= 1) {
+    if (raw_data %>% dplyr::select(dplyr::all_of(index_column)) %>% duplicated() %>% sum() >= 1) {
         warning("The indexes are not a unique identifier.")
     }
 
     if (is.na(individ_column)) {
-        meta_data <- data.frame(raw_data %>% select(all_of(index_column), all_of(meta_columns)), NA)
+        meta_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(index_column), dplyr::all_of(meta_columns)), NA)
     } else {
-        meta_data <- data.frame(raw_data %>% select(all_of(index_column), all_of(meta_columns), all_of(individ_column)))
+        meta_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(index_column), dplyr::all_of(meta_columns), dplyr::all_of(individ_column)))
     }
     colnames(meta_data) <- c("index", names(meta_columns), "individ")
     rownames(meta_data) <- meta_data$index
 
     # apply(c(1, 2) <- is this needed? 
-    locus_data <- data.frame(raw_data %>% select(all_of(locus_columns))) %>%
+    locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
         apply(1:2, as.numeric)
     colnames(locus_data) <- c(names(locus_columns))
     rownames(locus_data) <- meta_data$index
@@ -36,6 +35,17 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
     data <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(locus_columns), 
         meta_column_names = c("index", names(meta_columns), "individ"), multilocus_names = "index")
     data
+}
+
+# TODO : Work on this
+load_data_sqlite <- function(file_path, table = "Bears") {
+    db <- RSQLite::dbConnect(RSQLite::SQLite(), file_path)
+    query <- sprintf("SELECT * FROM %s", table)
+
+    raw_data <- RSQLite::dbGetQuery(db, query)
+    RSQLite::dbDisconnect(db)
+
+    print(raw_data)
 }
 
 create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99", "000", "0")) {
@@ -181,31 +191,23 @@ generate_threshold_plot <- function(new_data, data) {
     min_dist <- min(unlist(new_data$distances))
     # max_dist <- max(unlist(new_data$distances))
     max_dist <- max(unlist(lapply(new_data$meta$index, function(ind) {
-        sum(sort(new_data$distances[[ind]])[1:2])
+        sum(sort(new_data$distances[[ind]])[1:2], na.rm = TRUE)
     })))
 
     temp_thres <- min_dist + (max_dist - min_dist) * seq(0, 1, 0.01)
-    matches <- unlist(lapply(temp_thres, function(thres) { 
-        sum(
-            unlist(lapply(new_data$meta$index, function(ind) {
-                ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
-                ids <- ids[ids %in% data$meta$index]
-                length(unique(data$meta[ids, "individ"])) >= 2
-            }))
-        )
-    }))
-    unmatched <- unlist(lapply(temp_thres, function(thres) { 
-        sum(
-            unlist(lapply(new_data$meta$index, function(ind) {
-                ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
-                ids <- ids[ids %in% data$meta$index]
-                length(unique(data$meta[ids, "individ"])) == 0
-            }))
-        )
+    matches <- data.frame(lapply(temp_thres, function(thres) { 
+        nums <- data.frame(lapply(new_data$meta$index, function(ind) {
+            ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
+            ids <- ids[ids %in% data$meta$index]
+            num_matches <- length(unique(data$meta[ids, "individ"]))
+            c(num_matches >= 2, num_matches == 0)
+        }))
+
+        c(sum(unlist(nums[1,])), sum(unlist(nums[2,])))
     }))
 
-    plot(x = temp_thres, y = matches, xlab = "Threshold", ylab = "Number Of New Samples", col = "red", type = "l", lwd = 2)
-    lines(x = temp_thres, y = unmatched, col = "blue", lwd = 2)
+    plot(x = temp_thres, y = matches[1,], xlab = "Threshold", ylab = "Number Of New Samples", col = "red", type = "l", lwd = 2)
+    lines(x = temp_thres, y = matches[2,], col = "blue", lwd = 2)
     legend(x = "right", y = (min(temp_thres) + max(temp_thres)) / 2, legend = c("Non-matches", "Multiple Matches"), col = c("blue", "red"), lty = 1, pch = 16)
 }
 

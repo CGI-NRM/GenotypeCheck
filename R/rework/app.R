@@ -181,12 +181,26 @@ ui <- shiny::fluidPage(
         ),
         shiny::tabPanel(
             title = "Replace NRM Names With BI Names", value = "replace_nrm_with_bi_tab",
-            shiny::h3("Replace Temporary Names")
+            shiny::h3("Replace Temporary Names"),
+            shiny::sidebarLayout(
+                sidebarPanel = shiny::sidebarPanel(width = 3,
+                    shiny::fileInput(inputId = "new_individ_names_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
+                    shiny::uiOutput(outputId = "new_individ_names_sheet"),
+                    shiny::uiOutput(outputId = "new_individ_names_choice"),
+                    shiny::uiOutput(outputId = "new_individ_names_button"),
+                    shiny::textOutput(outputId = "change_names_return_message")
+                ),
+                mainPanel = shiny::mainPanel(
+                    DT::dataTableOutput(outputId = "new_names_match_table")
+                )
+            )
         )
     )
 )
 
 server <- function(input, output, session) {
+
+    change_names_list <- NULL
 
     data <- NULL
     new_data <- NULL
@@ -199,7 +213,7 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$data_file, {
         shiny::req(input$data_file)
 
-        output$load_data_choice <- shiny::renderUI({
+        output$load_data_sheet <- shiny::renderUI({
             if (endsWith(input$data_file$datapath, ".xls") | endsWith(input$data_file$datapath, ".xlsx") | endsWith(input$data_file$datapath, ".ods")) {
                 shiny::tagList(
                     shiny::textInput(inputId = "load_data_sheet", label = "Sheet: "),
@@ -448,15 +462,10 @@ server <- function(input, output, session) {
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
         lapply(new_data$meta$index, function(ind) {
-            # if (length(possible_matches[[ind]]$ids) <= 1) {
-                # shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. 
-                    # This could be a new individual or the threshold could be to low."))
-            # } else {
-                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
-                output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                    generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                })
-            # }
+            shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
+                generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+            })
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
         })
@@ -693,6 +702,85 @@ server <- function(input, output, session) {
             file = paste0("~/Downloads/data_export_new_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
             row.names = FALSE, quote = FALSE
         )
+    })
+
+    shiny::observeEvent(input$new_individ_names_file, {
+        shiny::req(input$new_individ_names_file)
+
+        output$new_individ_names_choice <- shiny::renderUI({
+            if (endsWith(input$new_individ_names_file$datapath, ".xls") | endsWith(input$new_individ_names_file$datapath, ".xlsx") | endsWith(input$new_individ_names_file$datapath, ".ods")) {
+                shiny::tagList(
+                    shiny::textInput(inputId = "new_individ_names_sheet", label = "Sheet: "),
+                    shiny::actionButton(inputId = "new_individ_names_sheet_done", label = "Sheet Entered")
+                )
+            }
+        })
+    })    
+
+    shiny::observeEvent({input$new_individ_names_file
+                  input$new_individ_names_sheet_done
+                  1
+                  }, {
+        shiny::req(input$new_individ_names_file)
+
+        if (endsWith(input$new_individ_names_file$datapath, ".xls") | endsWith(input$new_individ_names_file$datapath, ".xlsx") | endsWith(input$new_individ_names_file$datapath, ".ods")) {
+            shiny::req(input$new_individ_names_sheet_done)
+        }
+
+        headers <- load_file_headers(input$new_individ_names_file$datapath, input$new_individ_names_sheet)
+
+        output$new_individ_names_choice <- shiny::renderUI({
+            shiny::tagList(
+                shiny::selectInput(inputId = "new_individ_names_from_col", label = "From Column: ", choices = headers, selected = "NRM", multiple = FALSE),
+                shiny::selectInput(inputId = "new_individ_names_to_col", label = "To Column: ", choices = headers, selected = "BI", multiple = FALSE)
+            )
+        })
+
+        output$new_individ_names_button <- shiny::renderUI({
+            shiny::tagList(
+                shiny::actionButton(inputId = "new_individ_names_load", label = "Load File"),
+                shiny::tags$hr(),
+                shiny::actionButton(inputId = "new_individ_names_perform", label = "Change Names")
+            )
+        })
+    })
+
+    shiny::observeEvent(input$new_individ_names_load, {
+        req(input$new_individ_names_file)
+
+        if (endsWith(input$new_individ_names_file$datapath, ".xls") | endsWith(input$new_individ_names_file$datapath, ".xlsx")) {
+            raw_data <- readxl::read_excel(path = input$new_individ_names_file$datapath, col_names = TRUE, sheet = input$new_individ_names_sheet)
+        } else if (endsWith(input$new_individ_names_file$datapath, ".ods")) {
+            raw_data <- readODS::read_ods(path = input$new_individ_names_file$datapath, col_names = TRUE, sheet = input$new_individ_names_sheet)
+        } else {
+            raw_data <- read.table(file = input$new_individ_names_file$datapath, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+        }
+
+        change_names_table <- raw_data %>% dplyr::select(dplyr::all_of(c(input$new_individ_names_from_col, input$new_individ_names_to_col)))
+        change_names_list <<- change_names_table[,2]
+        names(change_names_list) <<- change_names_table[,1]
+
+        output$new_names_match_table <- DT::renderDataTable(options = list(dom = "t"), rownames = FALSE, {
+            data.frame(from = names(change_names_list), to = change_names_list)
+        })
+    })
+
+    shiny::observeEvent(input$new_individ_names_perform, {
+        req(input$new_individ_names_load)
+
+        temp_data <- data
+
+        lapply(data$meta$index, function(ind) {
+            if (data$meta[ind, "individ"] %in% names(change_names_list)) {
+                temp_data$meta[ind, "individ"] <<- change_names_list[data$meta[ind, "individ"]]
+            }
+        })
+
+        data <<- temp_data
+
+        update_choice_show_tables()
+        update_main_table()
+        output$change_names_return_message <- shiny::renderText("All individual with an individual-id found in the 'from' column have been changed to the corresponding 'to' column.")
     })
 }
 
