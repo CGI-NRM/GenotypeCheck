@@ -7,6 +7,8 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
         raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".ods")) {
         raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
+    } else if (endsWith(file_path, ".db")) {
+        raw_data <- load_data_sqlite(file_path)
     } else {
         raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
@@ -45,7 +47,7 @@ load_data_sqlite <- function(file_path, table = "Bears") {
     raw_data <- RSQLite::dbGetQuery(db, query)
     RSQLite::dbDisconnect(db)
 
-    print(raw_data)
+    raw_data
 }
 
 create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99", "000", "0")) {
@@ -127,6 +129,18 @@ sanity_check_new_data <- function(new_data, data) {
 # res <- dist_euclidian(list(multilocus1, multilocus2))
 dist_euclidian <- function(multilocus1, multilocus2) {
     sqrt(sum((multilocus1 - multilocus2) ^ 2, na.rm = TRUE))
+}
+
+dist_manhattan <- function(multilocus1, multilocus2) {
+    sum(abs(multilocus1 - multilocus2), na.rm = TRUE)
+}
+
+dist_maximum <- function(multilocus1, multilocus2) {
+    max(abs(multilocus1 - multilocus2), na.rm = TRUE)
+}
+
+dist_num_mismatches <- function(multilocus1, multilocus2) {
+    sum(!(multilocus1 == multilocus2))
 }
 
 # Apply to distances of new_data to ensure this data is not combined with the wrong new_data
@@ -214,7 +228,7 @@ generate_threshold_plot <- function(new_data, data) {
 match_new_data <- function(new_data, threshold) {
     if (is.null(new_data$distances)) {
         warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
-        return(NA)
+        return(NULL)
     }
 
     possible_matches <- list()

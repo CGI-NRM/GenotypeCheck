@@ -111,7 +111,8 @@ ui <- shiny::fluidPage(
                                     shiny::h4(shiny::textOutput(outputId = "load_data_before_match")),
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
-                                            shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc"), selected = "euc"),
+                                            shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man", 
+                                                "Maximun Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
                                             shiny::textOutput(outputId = "distances_done_message"),
                                             shiny::tags$hr(),
@@ -431,7 +432,13 @@ server <- function(input, output, session) {
         distance_function <- dist_euclidian
         if (identical(input$distance_function, "euc")) {
             distance_function <- dist_euclidian
-        }
+        } else if (identical(input$distance_function, "man")) {
+            distance_function <- dist_manhattan
+        } else if (identical(input$distance_function, "max")) {
+            distance_function <- dist_maximum
+        } else if (identical(input$distance_function, "num")) {
+            distance_function <- dist_num_mismatches
+        }  
         new_data$distances <<- calculate_new_data_distances(new_data, data, dist_euclidian)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
