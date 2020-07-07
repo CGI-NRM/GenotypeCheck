@@ -11,7 +11,9 @@ ui <- shiny::fluidPage(
     shiny::titlePanel("Match Genotype"),
 
     shiny::actionButton(inputId = "save", label = "Save Changes"),
-    shiny::actionButton(inputId = "export", label = "Export New Individuals"),
+    shiny::actionButton(inputId = "export_nrm", label = "Export All Samples With A Temporary (NRM) Id"),
+    shiny::actionButton(inputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
+    shiny::actionButton(inputId = "export_new", label = "Export All Newly Matched Samples With Individ Data"),
     shiny::tags$hr(),
 
     shiny::tabsetPanel(
@@ -148,6 +150,11 @@ ui <- shiny::fluidPage(
                                             shiny::actionButton(inputId = "merge_zero_distance_data", label = "Merge The Data That Matched With Zero Distance"),
                                             shiny::textOutput(outputId = "merge_zero_return_message"),
                                             shiny::tags$hr(),
+                                            shiny::textOutput(outputId = "number_of_new_without_id"),
+                                            shiny::tags$br(),
+                                            shiny::actionButton(inputId = "assign_new_ids", label = "Assign New NRM Ids To The New Samples Without Matches"),
+                                            shiny::textOutput(outputId = "assign_new_ids_return_message"),
+                                            shiny::tags$hr(),
                                             shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: "),
                                             shiny::tags$hr(),
                                             shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
@@ -171,6 +178,10 @@ ui <- shiny::fluidPage(
                     )
                 )
             )
+        ),
+        shiny::tabPanel(
+            title = "Replace NRM Names With BI Names", value = "replace_nrm_with_bi_tab",
+            shiny::h3("Replace Temporary Names")
         )
     )
 )
@@ -367,11 +378,12 @@ server <- function(input, output, session) {
             df <- data.frame(multilocus = combined_multilocus)
             rownames(df) <- names(combined_multilocus)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
+            df <- df[,colnames(df) != "individ"]
             df
         })
 
         output$load_data_before_match <- shiny::renderText("")
-        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " : "))
+        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " :|:  "))
         output$sanity_check <- shiny::renderText("Sanity Check")
         output$distances_done_message <- shiny::renderText("")
     })
@@ -391,6 +403,7 @@ server <- function(input, output, session) {
             df <- data.frame(multilocus = combined_multilocus)
             rownames(df) <- names(combined_multilocus)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
+            df <- df[,colnames(df) != "individ"]
             df
         })
 
@@ -412,7 +425,7 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$generate_threshold_plot, {
         shiny::req(data)
         shiny::req(new_data)
-        shiny::req(new_data$distances$distances)
+        shiny::req(new_data$distances)
 
         output$threshold_plot <- shiny::renderPlot({
             generate_threshold_plot(new_data, data)
@@ -435,25 +448,33 @@ server <- function(input, output, session) {
         possible_matches <<- match_new_data(new_data, input$match_threshold)
 
         lapply(new_data$meta$index, function(ind) {
-            if (length(possible_matches[[ind]]$ids) <= 1) {
-                shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. 
-                    This could be a new individual or the threshold could be to low."))
-            } else {
+            # if (length(possible_matches[[ind]]$ids) <= 1) {
+                # shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h5("No matches were found in the dataset within the selected threshold. 
+                    # This could be a new individual or the threshold could be to low."))
+            # } else {
                 shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
                 output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
                     generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 })
-            }
+            # }
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
         })
 
         output$load_data_and_generate_distances_merge_tab <- shiny::renderText("")
+        update_amount_texts()
+    })
+
+    update_amount_texts <- function() {
         output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))), 
             " new data-points that matched only one individual in the original data."))
-        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances$distances, function(x) { min(x) == 0 }))), 
-            " new data-points that matched an existing sample from the original data with zero distance."))
-    })
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(x) == 0 }))), 
+            " new data-points that matched another sample with zero distance."))
+        output$number_of_new_without_id <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { sum(!is.na(data$meta[x$ids, "individ"])) == 0 }))), 
+            " new data-points that did not match any existing individual and needs to get an id assigned to it. Some of these are grouped together in a new individual, 
+            only one of them will get an id assigned, you need to match with 'zero distance' or a 'single individual' for all of them to get ids. 
+            If the threshold is to low multiple new samples might get separate new ids even though they should be the same."))
+    }
 
     shiny::observeEvent(input$show_details_for_new_data, {
         shiny::req(input$show_details_for_new_data)
@@ -472,6 +493,7 @@ server <- function(input, output, session) {
 
             individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
             ids <- data$meta[data$meta$individ %in% individuals, "index"]
+            # ids <- data$meta$index
             ids <- ids[ids != ind]
 
             coords <- list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"]))
@@ -493,19 +515,34 @@ server <- function(input, output, session) {
         output$merge_new_individ_id <- shiny::renderUI({
             choices <- c(unique(data$meta[possible_matches[[ind]]$ids, "individ"]))
             choices <- choices[!is.na(choices)]
-            combined_data <- rbind(data$meta, new_data$meta)
-            nrm_ids <- combined_data$individ[startsWith(combined_data$individ, "NRM_")]
-            if (sum(!is.na(nrm_ids)) == 0) {
-                max_nrm_num_id <- 0
-            } else {
-                max_nrm_num_id <- max(as.numeric(gsub("^.*?_", "", nrm_ids)), na.rm = TRUE)
-            }
-            choices <- c(choices, paste0("NRM_", max_nrm_num_id + 1))
+            
+            choices <- c(choices, get_next_nrm_id(new_data, data))
             shiny::selectInput(inputId = "merge_new_individ_id_select", label = "New Individ-Id", choices = choices)
         })
     })
 
+    get_next_nrm_id <- function(nd, d) {
+        combined_data <- rbind(d$meta, nd$meta)
+        nrm_ids <- combined_data$individ[startsWith(combined_data$individ, "NRM_")]
+        if (sum(!is.na(nrm_ids)) == 0) {
+            max_nrm_num_id <- 0
+        } else {
+            max_nrm_num_id <- max(as.numeric(gsub("^.*?_", "", nrm_ids)), na.rm = TRUE)
+        }    
+        paste0("NRM_", max_nrm_num_id + 1)
+    }
+
+    update_choice_show_tables <- function() {
+        lapply(new_data$meta$index, function(ind) {
+            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
+                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df
+            })
+        })
+    }
+
     shiny::observeEvent(input$merge_one_individ_new_data, {
+        output$merge_one_return_message <- shiny::renderText("")
         merged_data <<- data
 
         one_individ_match <- unlist(lapply(new_data$meta$index, function(ind) {
@@ -523,24 +560,21 @@ server <- function(input, output, session) {
 
         data <<- merged_data
 
-        lapply(new_data$meta$index, function(ind) {
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                df
-            })
-        })
-
+        update_choice_show_tables()
         update_main_table()
+        update_amount_texts()
 
+        Sys.sleep(0.6)
         output$merge_one_return_message <- shiny::renderText("Done")
     })
 
     shiny::observeEvent(input$merge_zero_distance_data, {
+        output$merge_zero_return_message <- shiny::renderText("")
         merged_data <<- data
 
-        have_zero <- unlist(lapply(new_data$distances$distances, function(x) { sort(x)[1] == 0 }))
+        have_zero <- unlist(lapply(new_data$distances, function(x) { sort(x)[1] == 0 }))
         lapply(new_data$meta$index[have_zero], function(ind) {
-            indexes <- names(new_data$distances$distances[[ind]][new_data$distances$distances[[ind]] == 0])
+            indexes <- names(new_data$distances[[ind]][new_data$distances[[ind]] == 0])
             new_individ <- data$meta[indexes, "individ"] 
             new_individ <- new_individ[!is.na(new_individ)][1]
 
@@ -549,19 +583,36 @@ server <- function(input, output, session) {
 
         data <<- merged_data
 
-        lapply(new_data$meta$index, function(ind) {
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                df
-            })
-        })
-
+        update_choice_show_tables()
         update_main_table()
+        update_amount_texts()
 
+        Sys.sleep(0.6)
         output$merge_zero_return_message <- shiny::renderText("Done")
     })
 
-    shiny::observeEvent(input$merge_new_individ_id, {
+    shiny::observeEvent(input$assign_new_ids, {
+        output$assign_new_ids_return_message <- shiny::renderText("")
+
+        merged_data <<- data
+
+        lapply(new_data$meta$index, function(ind) {
+            if (sum(!is.na(merged_data$meta[possible_matches[[ind]]$ids, "individ"])) == 0) {
+                merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, get_next_nrm_id(new_data, merged_data))$data
+            }
+        })
+
+        data <<- merged_data
+
+        update_choice_show_tables()
+        update_amount_texts()
+        update_main_table()
+
+        Sys.sleep(0.6)
+        output$assign_new_ids_return_message <- shiny::renderText("Done")
+    })
+
+    shiny::observeEvent(input$merge_new_individ_id_select, {
         if (!identical(input$merge_new_individ_id_select, "") & !(input$merge_new_individ_id_select %in% data$meta$individ)) {
             output$merge_return_message <- shiny::renderText("The new inidivid-id was not found among the existing individuals. This will create a new individ, make sure this is what you want to do.")
         } else {
@@ -582,22 +633,15 @@ server <- function(input, output, session) {
         merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id_select)
         data <<- merged_data$data
 
-        lapply(rev(new_data$meta$index), function(ind) {
-        # lapply(new_data$meta$index[data$meta[new_data$meta$index, "individ"] %in% data$meta[ind, "individ"]], function (ind) {
-            output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
-                df
-            })
-        })
-
-
         if (any(merged_data$success)) {
             output$merge_return_message <- shiny::renderText("New data successfully merged with data.")
         } else {
             output$merge_return_message <- shiny::renderText("There was an error trying to merge the new data.")
         }
 
+        update_choice_show_tables()
         update_main_table()
+        update_amount_texts()
         shiny::updateTextInput(session, inputId = "show_details_for_new_data", value = "")
     })
 
@@ -611,10 +655,42 @@ server <- function(input, output, session) {
         )
     })
 
-    shiny::observeEvent(input$export, {
+    shiny::observeEvent(input$export_nrm, {
+        ids <- data$meta$index[startsWith(data$meta$individ, "NRM")]
+        df <- cbind(data$meta[ids,], data$multilocus[ids,])
         write.csv(
-            x = cbind(data$meta[new_data$meta$index %in% data$meta$index,], new_data$multilocus[new_data$meta$index %in% data$meta$index,]),
-            file = paste0("~/Downloads/data_export_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
+            x = df,
+            file = paste0("~/Downloads/data_export_all_nrm_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
+            row.names = FALSE, quote = FALSE
+        )
+    })
+
+    shiny::observeEvent(input$export_one_nrm, {
+        nrm_ids <- unique(data$meta$individ[startsWith(data$meta$individ, "NRM")])
+        ids <- unlist(lapply(nrm_ids, function(id) {
+            pos_ids <- data$meta$index[data$meta$individ == id]
+            if (length(pos_ids) == 1) {
+                return(pos_ids)
+            } else {
+                return(names(sort(apply(data$multilocus[pos_ids,], 1, function(x) { sum(is.na(x)) }))[1]))
+            }
+        }))
+        df <- cbind(data$meta[ids,], data$multilocus[ids,])
+        write.csv(
+            x = df,
+            file = paste0("~/Downloads/data_export_one_nrm_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
+            row.names = FALSE, quote = FALSE
+        )
+    })
+
+    shiny::observeEvent(input$export_new, {
+        df <- cbind(new_data$meta, new_data$multilocus)
+        for (ind in new_data$meta$index) {
+            df[ind, "individ"] <- data$meta[ind, "individ"]
+        }
+        write.csv(
+            x = df,
+            file = paste0("~/Downloads/data_export_new_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
             row.names = FALSE, quote = FALSE
         )
     })

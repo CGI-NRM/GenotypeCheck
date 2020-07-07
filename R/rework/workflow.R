@@ -43,13 +43,6 @@ if (identical(nda, "one")) {
     print(sanity_message)
     # Display sanite message to user
 
-    # Not using this due to complications later with a lot of tests
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-    # TODO :: TODO :: Remove id_type - Evt: Rewrite code to not use $ids everywhere
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
-    # Calculate the center of each individ, this is optional way of doing things, might be better as an individ could expand othervise
-    # centers <- calculate_individ_centers(data)
-
     new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value
@@ -59,12 +52,7 @@ if (identical(nda, "one")) {
 
     possible_matches <- match_new_data(new_data, threshold)
 
-    # Check what kind of data possible matches gave us, either indexes of close samples or close individs
-    if (identical(possible_matches[[new_data$meta$index]]$id_type, "index")) {
-        new_id <- data$meta[possible_matches[[new_data$meta$index]]$ids[3], "individ"]
-    } else if (identical(possible_matches[[new_data$meta$index]]$id_type, "individ")) {
-        new_id <- possible_matches[[new_data$meta$index]]$ids[3]
-    }
+    new_id <- data$meta[possible_matches[[new_data$meta$index]]$ids[3], "individ"]
 
     # Display the options to the user, then let them choose
 
@@ -79,14 +67,10 @@ if (identical(nda, "one")) {
     sanity_message <- sanity_check_new_data(new_data_batch, data)
     print(sanity_message)
 
-    # TODO :: See todo at other center caulclation
-    # Calculate the center of each individ, this is optional way of doing things, might be better as an individ could expand othervise
-    # centers <- calculate_individ_centers(data)
-
     new_data_batch$distances <- calculate_new_data_distances(new_data_batch, data, dist_euclidian)
 
     # TODO:: Generate plot to allow user to choose a fitting threshold value - work with batch new
-    # threshold_plot <- generate_threshold_plot(new_data, data)
+    # threshold_plot <- generate_threshold_plot(new_data_batch, data)
 
     threshold <- 10
 
@@ -97,12 +81,7 @@ if (identical(nda, "one")) {
     merged_data <- data
 
     for (ind in new_data_batch$meta$index) {
-        # Check what kind of data possible matches gave us, either indexes of close samples or close individs
-        if (identical(possible_matches[[ind]]$id_type, "index")) {
-            new_id <- data$meta[possible_matches[[ind]]$ids[1], "individ"]
-        } else if (identical(possible_matches[[ind]]$id_type, "individ")) {
-            new_id <- possible_matches[[ind]]$ids[1]
-        }
+        new_id <- data$meta[possible_matches[[ind]]$ids[1], "individ"]
 
         # Display the options to the user, then let them choose which id to give
 

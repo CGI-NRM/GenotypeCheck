@@ -54,6 +54,9 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     colnames(meta_data) <- c("index", names(meta), "individ")
     rownames(meta_data) <- c(index)
 
+    meta_data$north <- as.numeric(meta_data$north)
+    meta_data$east <- as.numeric(meta_data$east)
+
     ndata <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), 
         distances = list(distances = c(NULL), names_type = c(NULL)))
     ndata
@@ -134,7 +137,7 @@ calculate_new_data_distances <- function(new_data, data, distance_function) {
 
     names(distances) <- new_data$meta$index
 
-    list(distances = distances, names_type = data$multilocus_names)
+    distances
 }
 
 combine_multilocus <- function(locus) {
@@ -156,7 +159,7 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
     multi <- combined_data[ind]
     multi <- c(multi, combined_data[ids])
 
-    distance <- c(NA, new_data$distances$distances[[ind]][ids])
+    distance <- c(NA, new_data$distances[[ind]][ids])
     names(distance)[1] <- ind
 
     indi <- c(NA, data$meta[ids,"individ"])
@@ -173,18 +176,19 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
     df
 }
 
+# EASY TO SPEED UP; REMOVE LOPS TODO::: TODO
 generate_threshold_plot <- function(new_data, data) {
-    min_dist <- min(unlist(new_data$distances$distances))
-    # max_dist <- max(unlist(new_data$distances$distances))
+    min_dist <- min(unlist(new_data$distances))
+    # max_dist <- max(unlist(new_data$distances))
     max_dist <- max(unlist(lapply(new_data$meta$index, function(ind) {
-        sum(sort(new_data$distances$distances[[ind]])[1:2])
+        sum(sort(new_data$distances[[ind]])[1:2])
     })))
 
     temp_thres <- min_dist + (max_dist - min_dist) * seq(0, 1, 0.01)
     matches <- unlist(lapply(temp_thres, function(thres) { 
         sum(
             unlist(lapply(new_data$meta$index, function(ind) {
-                ids <- names(new_data$distances$distances[[ind]])[new_data$distances$distances[[ind]] <= thres]
+                ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
                 ids <- ids[ids %in% data$meta$index]
                 length(unique(data$meta[ids, "individ"])) >= 2
             }))
@@ -193,28 +197,27 @@ generate_threshold_plot <- function(new_data, data) {
     unmatched <- unlist(lapply(temp_thres, function(thres) { 
         sum(
             unlist(lapply(new_data$meta$index, function(ind) {
-                ids <- names(new_data$distances$distances[[ind]])[new_data$distances$distances[[ind]] <= thres]
+                ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
                 ids <- ids[ids %in% data$meta$index]
                 length(unique(data$meta[ids, "individ"])) == 0
             }))
         )
     }))
 
-    plot(x = temp_thres, y = matches, xlab = "Threshold", ylab = "Number Of Multiple Matches", col = "red", pch = 15, type = "l", lwd = 2)
-    lines(x = temp_thres, y = unmatched, xlab = "Threshold", ylab = "Numebr Of Unmatches", col = "blue", pch = 16, lwd = 2)
-    legend(x = "right", y = (min(temp_thres) + max(temp_thres)) / 2, legend = c("Non-matches", "Multiple Matches"), col = c("blue", "red"), lty = 1, pch = 15:16)
+    plot(x = temp_thres, y = matches, xlab = "Threshold", ylab = "Number Of New Samples", col = "red", type = "l", lwd = 2)
+    lines(x = temp_thres, y = unmatched, col = "blue", lwd = 2)
+    legend(x = "right", y = (min(temp_thres) + max(temp_thres)) / 2, legend = c("Non-matches", "Multiple Matches"), col = c("blue", "red"), lty = 1, pch = 16)
 }
 
 match_new_data <- function(new_data, threshold) {
-    if (is.null(new_data$distances$distances)) {
+    if (is.null(new_data$distances)) {
         warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
         return(NA)
     }
 
     possible_matches <- list()
     for (new_ind in new_data$meta$index) {
-        possible_matches <- append(possible_matches, list(list(ids = names(new_data$distances$distances[[new_ind]][new_data$distances$distances[[new_ind]] <= threshold]), 
-            id_type = new_data$distances$names_type)))
+        possible_matches <- append(possible_matches, list(list(ids = names(new_data$distances[[new_ind]][new_data$distances[[new_ind]] <= threshold]))))
     }
     names(possible_matches) <- new_data$meta$index
     possible_matches
