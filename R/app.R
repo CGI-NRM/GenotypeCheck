@@ -1,9 +1,7 @@
-source("handle_data.R")
-
 SWEREF99 <- sp::CRS("+init=epsg:3006")
 WGS84 <- sp::CRS("+init=epsg:4326")
 
-locus_column_names <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", 
+locus_column_names <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
                         "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
 
 ui <- shiny::fluidPage(
@@ -49,7 +47,7 @@ ui <- shiny::fluidPage(
                                 shiny::column(width = 12,
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
-                                            shiny::radioButtons(inputId = "load_data_type", label = "Load Data Type", choices = c("Single/Manual" = "single", "Multiple/File" = "file"), 
+                                            shiny::radioButtons(inputId = "load_data_type", label = "Load Data Type", choices = c("Single/Manual" = "single", "Multiple/File" = "file"),
                                                 selected = "single", inline = TRUE),
                                             shiny::conditionalPanel(condition = "input.load_data_type == 'single'",
                                                 shiny::textInput(inputId = "load_new_index", label = "Index: "),
@@ -86,7 +84,7 @@ ui <- shiny::fluidPage(
                                                 shiny::actionButton(inputId = "compile_single_new_data", label = "Compile New Data")
                                             ),
                                             shiny::conditionalPanel(condition = "input.load_data_type == 'file'",
-                                                shiny::fileInput(inputId = "new_data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", 
+                                                shiny::fileInput(inputId = "new_data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain",
                                                     ".csv", ".xls", ".xlsx", ".ods")),
                                                 shiny::uiOutput(outputId = "load_new_data_sheet"),
                                                 shiny::uiOutput(outputId = "load_new_data_choice"),
@@ -111,7 +109,7 @@ ui <- shiny::fluidPage(
                                     shiny::h4(shiny::textOutput(outputId = "load_data_before_match")),
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
-                                            shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man", 
+                                            shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man",
                                                 "Maximun Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
                                             shiny::textOutput(outputId = "distances_done_message"),
@@ -208,7 +206,7 @@ server <- function(input, output, session) {
     possible_matches <- NULL
 
     output$load_data_hint <- shiny::renderText("You Need To Load The Dataset Before You Can Match New Data Against It")
-    output$load_data_before_match <- shiny::renderText("You Need To Load Some New Data Before You Can Match It Against The Dataset") 
+    output$load_data_before_match <- shiny::renderText("You Need To Load Some New Data Before You Can Match It Against The Dataset")
     output$load_data_and_generate_distances_merge_tab <- shiny::renderText("You Need To Load Data And Match New Data Against It Before You Can Use This Tab")
 
     shiny::observeEvent(input$data_file, {
@@ -336,7 +334,7 @@ server <- function(input, output, session) {
 
     load_file_headers <- function(file_path, sheet) {
         if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
-            raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, sheet = sheet) 
+            raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, sheet = sheet)
         } else if (endsWith(file_path, ".ods")) {
             raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, sheet = sheet)
         } else {
@@ -347,19 +345,19 @@ server <- function(input, output, session) {
     }
 
     shiny::observeEvent(input$load_data_button, {
-        locus_columns <- c(input$load_data_choice_locus_1, input$load_data_choice_locus_2, input$load_data_choice_locus_3, input$load_data_choice_locus_4, 
-                          input$load_data_choice_locus_5, input$load_data_choice_locus_6, input$load_data_choice_locus_7, input$load_data_choice_locus_8, 
+        locus_columns <- c(input$load_data_choice_locus_1, input$load_data_choice_locus_2, input$load_data_choice_locus_3, input$load_data_choice_locus_4,
+                          input$load_data_choice_locus_5, input$load_data_choice_locus_6, input$load_data_choice_locus_7, input$load_data_choice_locus_8,
                           input$load_data_choice_locus_9, input$load_data_choice_locus_10, input$load_data_choice_locus_11, input$load_data_choice_locus_12,
                           input$load_data_choice_locus_13, input$load_data_choice_locus_14, input$load_data_choice_locus_15, input$load_data_choice_locus_16)
 
         names(locus_columns) <- locus_column_names
 
         data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
-                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col, 
+                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col,
                            gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
 
         update_main_table()
-        
+
         output$load_data_hint <- shiny::renderText("")
 
         output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
@@ -367,8 +365,8 @@ server <- function(input, output, session) {
 
     update_main_table <- function() {
         output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
-            df <- data.frame(multilocus = data$combined_multilocus)
-            rownames(df) <- names(combined_multilocus)
+            df <- data.frame(multilocus = data$combined_locus_data)
+            rownames(df) <- names(data$combined_locus_data)
             df <- cbind(index = data$meta$index, df, data$meta[colnames(data$meta) != "index"])
             df
         })
@@ -376,21 +374,20 @@ server <- function(input, output, session) {
 
     shiny::observeEvent(input$load_new_data_button, {
 
-        locus_columns <- c(input$load_new_data_choice_locus_1, input$load_new_data_choice_locus_2, input$load_new_data_choice_locus_3, input$load_new_data_choice_locus_4, 
-                          input$load_new_data_choice_locus_5, input$load_new_data_choice_locus_6, input$load_new_data_choice_locus_7, input$load_new_data_choice_locus_8, 
+        locus_columns <- c(input$load_new_data_choice_locus_1, input$load_new_data_choice_locus_2, input$load_new_data_choice_locus_3, input$load_new_data_choice_locus_4,
+                          input$load_new_data_choice_locus_5, input$load_new_data_choice_locus_6, input$load_new_data_choice_locus_7, input$load_new_data_choice_locus_8,
                           input$load_new_data_choice_locus_9, input$load_new_data_choice_locus_10, input$load_new_data_choice_locus_11, input$load_new_data_choice_locus_12,
                           input$load_new_data_choice_locus_13, input$load_new_data_choice_locus_14, input$load_new_data_choice_locus_15, input$load_new_data_choice_locus_16)
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, 
-            meta_columns = c(date = input$load_new_data_choice_date_col, 
+        new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns,
+            meta_columns = c(date = input$load_new_data_choice_date_col,
             north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col), sheet = input$load_new_data_sheet)
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
-            combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
-            df <- data.frame(multilocus = combined_multilocus)
-            rownames(df) <- names(combined_multilocus)
+            df <- data.frame(multilocus = new_data$combined_locus_data)
+            rownames(df) <- names(new_data$combined_locus_data)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
             df <- df[,colnames(df) != "individ"]
             df
@@ -403,19 +400,18 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$compile_single_new_data, {
-        locus_data <- c(input$load_new_locus_1, input$load_new_locus_2, input$load_new_locus_3, input$load_new_locus_4, input$load_new_locus_5, input$load_new_locus_6, 
-                     input$load_new_locus_7, input$load_new_locus_8, input$load_new_locus_9, input$load_new_locus_10, input$load_new_locus_11, input$load_new_locus_12, 
+        locus_data <- c(input$load_new_locus_1, input$load_new_locus_2, input$load_new_locus_3, input$load_new_locus_4, input$load_new_locus_5, input$load_new_locus_6,
+                     input$load_new_locus_7, input$load_new_locus_8, input$load_new_locus_9, input$load_new_locus_10, input$load_new_locus_11, input$load_new_locus_12,
                      input$load_new_locus_13, input$load_new_locus_14, input$load_new_locus_15, input$load_new_locus_16)
 
         names(locus_data) <- locus_column_names
-        
-        new_data <<- create_new_data(input$load_new_index, multilocus = locus_data, 
+
+        new_data <<- create_new_data(input$load_new_index, multilocus = locus_data,
             meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
-            combined_multilocus <- apply(new_data$multilocus, 1, combine_multilocus)
-            df <- data.frame(multilocus = combined_multilocus)
-            rownames(df) <- names(combined_multilocus)
+            df <- data.frame(multilocus = new_data$combined_locus_data)
+            rownames(df) <- names(new_data$combined_locus_data)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
             df <- df[,colnames(df) != "individ"]
             df
@@ -437,7 +433,7 @@ server <- function(input, output, session) {
             distance_function <- dist_maximum
         } else if (identical(input$distance_function, "num")) {
             distance_function <- dist_num_mismatches
-        }  
+        }
         new_data$distances <<- calculate_new_data_distances(new_data, data, dist_euclidian)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
@@ -481,13 +477,13 @@ server <- function(input, output, session) {
     })
 
     update_amount_texts <- function() {
-        output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))), 
+        output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))),
             " new data-points that matched only one individual in the original data."))
-        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(x) == 0 }))), 
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(x) == 0 }))),
             " new data-points that matched another sample with zero distance."))
-        output$number_of_new_without_id <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { sum(!is.na(data$meta[x$ids, "individ"])) == 0 }))), 
-            " new data-points that did not match any existing individual and needs to get an id assigned to it. Some of these are grouped together in a new individual, 
-            only one of them will get an id assigned, you need to match with 'zero distance' or a 'single individual' for all of them to get ids. 
+        output$number_of_new_without_id <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { sum(!is.na(data$meta[x$ids, "individ"])) == 0 }))),
+            " new data-points that did not match any existing individual and needs to get an id assigned to it. Some of these are grouped together in a new individual,
+            only one of them will get an id assigned, you need to match with 'zero distance' or a 'single individual' for all of them to get ids.
             If the threshold is to low multiple new samples might get separate new ids even though they should be the same."))
     }
 
@@ -530,7 +526,7 @@ server <- function(input, output, session) {
         output$merge_new_individ_id <- shiny::renderUI({
             choices <- c(unique(data$meta[possible_matches[[ind]]$ids, "individ"]))
             choices <- choices[!is.na(choices)]
-            
+
             choices <- c(choices, get_next_nrm_id(new_data, data))
             shiny::selectInput(inputId = "merge_new_individ_id_select", label = "New Individ-Id", choices = choices)
         })
@@ -543,7 +539,7 @@ server <- function(input, output, session) {
             max_nrm_num_id <- 0
         } else {
             max_nrm_num_id <- max(as.numeric(gsub("^.*?_", "", nrm_ids)), na.rm = TRUE)
-        }    
+        }
         paste0("NRM_", max_nrm_num_id + 1)
     }
 
@@ -590,7 +586,7 @@ server <- function(input, output, session) {
         have_zero <- unlist(lapply(new_data$distances, function(x) { sort(x)[1] == 0 }))
         lapply(new_data$meta$index[have_zero], function(ind) {
             indexes <- names(new_data$distances[[ind]][new_data$distances[[ind]] == 0])
-            new_individ <- data$meta[indexes, "individ"] 
+            new_individ <- data$meta[indexes, "individ"]
             new_individ <- new_individ[!is.na(new_individ)][1]
 
             merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
@@ -721,7 +717,7 @@ server <- function(input, output, session) {
                 )
             }
         })
-    })    
+    })
 
     shiny::observeEvent({input$new_individ_names_file
                   input$new_individ_names_sheet_done

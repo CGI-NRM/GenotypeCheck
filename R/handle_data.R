@@ -104,11 +104,14 @@ load_data_sqlite <- function(file_path, table = "Bears") {
 #'
 #' @examples
 #' \dontrun{
-#' locus_data <- c("110", "112", "143", "145", "123", "127", "164", "170", "150", "150", "230", "248", "184", "186", "128", "132")
-#' names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2", "MU23 - 1", "MU23 - 2",
-#'                        "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1", "G10L - 2", "MU50 - 1", "MU50 - 2")
+#' locus_data <- c("110", "112", "143", "145", "123", "127", "164", "170", "150", "150", "230",
+#'     "248", "184", "186", "128", "132")
+#' names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2",
+#'     "MU23 - 1", "MU23 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1",
+#'     "G10L - 2", "MU50 - 1", "MU50 - 2")
 #
-#' new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
+#' new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta =
+#'     c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
 #' }
 create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99", "000", "0")) {
     multilocus[multilocus %in% na_strings] <- NA
@@ -214,13 +217,6 @@ sanity_check_new_data <- function(new_data, data) {
     }
 }
 
-# A list with two vectors, each containing the locuses of the different samples
-# Example:
-# multilocus1 <- c(110, 112, 132, 128)
-# multilocus2 <- c(96, 108, 118, 112)
-# res <- dist_euclidian(list(multilocus1, multilocus2))
-
-
 #' An Euclidian Distance function
 #'
 #' @param multilocus1 A vector with the locuses of the first object to be compared.
@@ -293,11 +289,6 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
     sum(!(multilocus1 == multilocus2), na.rm = TRUE)
 }
 
-
-# Apply to distances of new_data to ensure this data is not combined with the wrong new_data
-# Example:
-# new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
-
 #' Calculate the distances from the new data to the existing data.
 #'
 #' @param new_data A new_data object.
@@ -309,9 +300,11 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
 #'
 #' @examples
 #' \dontrun{
-#' # OBS Apply the result of this function to the distance of the new_data, as this is required for other functions to work.
+#' # OBS Apply the result of this function to the distance of the new_data, as this is required
+#' # for other functions to work.
 #'
-#' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data, distance_function = dist_euclidian)
+#' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
+#'     distance_function = dist_euclidian)
 #'
 #' }
 calculate_new_data_distances <- function(new_data, data, distance_function) {
@@ -363,7 +356,8 @@ combine_multilocus <- function(locus) {
 #'
 #' @examples
 #' \dontrun{
-#' df <- generate_user_choice_data_frame(possible_matches = possible_matches, new_data = new_data, data = data, ind = "SEP0159539")
+#' df <- generate_user_choice_data_frame(possible_matches = possible_matches,
+#'     new_data = new_data, data = data, ind = "SEP0159539")
 #' }
 generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
     individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
@@ -440,6 +434,9 @@ generate_threshold_plot <- function(new_data, data) {
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' possible_matches <- match_new_data(new_data = new_data, threshold = threshold)
+#' }
 match_new_data <- function(new_data, threshold) {
     if (is.null(new_data$distances)) {
         warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
@@ -485,7 +482,8 @@ extract_one_index_from_batch <- function(batch, index) {
 #' \dontrun{
 #' ind <- "SEP0159539"
 #' new_id <- possible_matches[[ind]]$ids[1]
-#' merged_data <- merge_new_data(new_data = extract_one_index_from_batch(batch = new_data, index = ind), data = data, new_data_id = new_id)
+#' merged_data <- merge_new_data(new_data = extract_one_index_from_batch(batch = new_data,
+#'     index = ind), data = data, new_data_id = new_id)
 #' }
 merge_new_data <- function(new_data, data, new_data_id) {
     if (is.na(new_data_id) | is.null(new_data_id)) {
