@@ -832,6 +832,9 @@ server <- function(input, output, session) {
             }
         )
     })
+
+    delete_unwanted_backups <- function(folder_path) {
+    }
 }
 
 shiny::shinyApp(ui = ui, server = server)
