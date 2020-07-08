@@ -1,5 +1,14 @@
 library(dplyr)
 
+# This assumes standard names
+# If these are set the shiny app will not allow the user to choose a dataset to load.
+
+database_path <- "/home/elias-lundell/Downloads/"
+database_file <- "bear_data_part1.csv"
+# database_path <- ""
+# database_file <- ""
+database_sheet <- 1
+
 SWEREF99 <- sp::CRS("+init=epsg:3006")
 WGS84 <- sp::CRS("+init=epsg:4326")
 
@@ -21,7 +30,7 @@ ui <- shiny::fluidPage(
                     shiny::h3("Dataset"),
                     shiny::sidebarLayout(
                         sidebarPanel = shiny::sidebarPanel(width = 2,
-                            shiny::fileInput(inputId = "data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
+                            shiny::uiOutput(outputId = "load_data_file_choose"),
                             shiny::uiOutput(outputId = "load_data_sheet"),
                             shiny::uiOutput(outputId = "load_data_choice"),
                             shiny::uiOutput(outputId = "load_data_locuses"),
@@ -222,7 +231,34 @@ server <- function(input, output, session) {
         shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data")
     })
 
+    shiny::observeEvent(input$main_panel, {
+        if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
+
+            locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
+                            "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
+
+            names(locus_columns) <- locus_column_names
+
+            data <<- load_data(load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
+                               meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed"))
+
+            update_main_table()
+
+            output$load_data_button_holder <- shiny::renderUI({})
+            output$load_data_hint <- shiny::renderText("")
+            output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
+        } else {
+            output$load_data_file_choose <- shiny::renderUI({
+                shiny::fileInput(inputId = "data_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods"))
+            })
+        }
+    })
+
     shiny::observeEvent(input$data_file, {
+        if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
+            return()
+        }
+
         shiny::req(input$data_file)
 
         output$load_data_sheet <- shiny::renderUI({
@@ -300,6 +336,11 @@ server <- function(input, output, session) {
                   input$load_data_sheet_done
                   1
                   }, {
+
+        if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
+            return()
+        }
+
         shiny::req(input$data_file)
 
         if (endsWith(input$data_file$datapath, ".xls") | endsWith(input$data_file$datapath, ".xlsx") | endsWith(input$data_file$datapath, ".ods")) {
@@ -679,16 +720,6 @@ server <- function(input, output, session) {
         shiny::updateTextInput(session, inputId = "show_details_for_new_data", value = "")
     })
 
-    shiny::observeEvent(input$save, {
-        system(sprintf("cp %s %s", input$data_file$datapath, paste0("~/Downloads/backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name)))
-
-        write.csv(
-            x = cbind(data$meta, data$multilocus),
-            file = paste0("~/Downloads/", input$data_file$name),
-            row.names = FALSE, quote = FALSE
-        )
-    })
-
     shiny::observeEvent(input$new_individ_names_file, {
         shiny::req(input$new_individ_names_file)
 
@@ -833,7 +864,29 @@ server <- function(input, output, session) {
         )
     })
 
-    delete_unwanted_backups <- function(folder_path) {
+    shiny::observeEvent(input$save, {
+        if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
+            file_path_from <- paste0(database_path, database_file)
+            file_path_to <- paste0(database_path, database_file)
+        } else {
+            file_path_from <- input$data_file$datapath
+            file_path_to <- "~/Downloads/"
+        }
+        system(sprintf("cp %s %s", file_path_from, paste0(file_path_to, "backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"))))
+
+        if (endsWith(database_file, ".db")) {
+            # TODO: HANDLE SQLITE HERE
+        } else {
+            write.csv(
+                x = cbind(data$meta, data$multilocus),
+                file = paste0(database_path, database_file),
+                row.names = FALSE, quote = FALSE
+            )
+        }
+    })
+
+
+    delete_unwanted_backups <- function() {
     }
 }
 

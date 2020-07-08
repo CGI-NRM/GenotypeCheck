@@ -7,6 +7,7 @@ library(dplyr)
 #' @param na_strings A vector of strings that are to be interpreted as NA values. Default is "NA", "-99", "0", and "000".
 #'
 #' @return A table with all columns of the file or database
+#' importFrom utils read.table
 #' @export
 #'
 #' @examples
@@ -52,6 +53,7 @@ load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0",
 #' north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.
 #'
 #' @return A data object that is used in the rest of this package.
+#' importFrom dplyr %>%
 #' @export
 #'
 #' @examples
@@ -421,6 +423,7 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 #' @param data A data object.
 #'
 #' @return Renders a plot showing how different thresholds would affect the resulting merge.
+#' importFrom graphics legend lines
 #' @export
 #'
 #' @examples
@@ -503,6 +506,7 @@ extract_one_index_from_batch <- function(batch, index) {
 #'
 #' @return A list with $data that contains the new data and $success that is either TRUE or FALSE depending on if the function succeeded.
 #' The test is rudimentary and weird/broken or corrupt data may be generated even if this value is TRUE.
+#' importFrom dplyr %>%
 #' @export
 #'
 #' @examples
