@@ -15,5 +15,6 @@ Imports:
   readxl,
   readODS,
   rgdal,
+  RSQLite,
   shiny,
-  zeallot
+  stringr
