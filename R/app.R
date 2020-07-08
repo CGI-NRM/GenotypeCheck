@@ -333,6 +333,7 @@ server <- function(input, output, session) {
     })
 
     load_file_headers <- function(file_path, sheet) {
+        colnames(load_raw_data())
         if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
             raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, sheet = sheet)
         } else if (endsWith(file_path, ".ods")) {
@@ -352,9 +353,9 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        data <<- load_data(file_path = input$data_file$datapath, index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
+        data <<- load_data(load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
                            meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col,
-                           gender = input$load_data_choice_gender_col), sheet = input$load_data_sheet)
+                           gender = input$load_data_choice_gender_col))
 
         update_main_table()
 
@@ -381,9 +382,9 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- create_new_data_batch(file_path = input$new_data_file$datapath, index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns,
+        new_data <<- create_new_data_batch(load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet), index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns,
             meta_columns = c(date = input$load_new_data_choice_date_col,
-            north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col), sheet = input$load_new_data_sheet)
+            north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             df <- data.frame(multilocus = new_data$combined_locus_data)

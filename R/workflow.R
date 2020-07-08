@@ -7,7 +7,7 @@ locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "
 
 names(locus_columns) <- locus_column_names
 
-data <- load_data(file_path = "~/code/r/GenotypeCheck/data/bear_data_part1.csv", index_column = "index", locus_columns = locus_columns, individ_column = "individ",
+data <- load_data(load_raw_data(file_path = "~/code/r/GenotypeCheck/data/bear_data_part1.csv"), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
                   meta_columns = c(date = "date", north = "north", east = "east", gender = "gender"))
 
 # Option to test one new data point or load a file with multiple
@@ -21,7 +21,7 @@ if (identical(nda, "one")) {
 
     new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
 } else if (identical(nda, "mul")) {
-    new_data <- create_new_data_batch(file_path = "~/code/r/GenotypeCheck/data/bear_data_part2.csv", index_column = "index", locus_columns = locus_columns,
+    new_data <- create_new_data_batch(load_raw_data(file_path = "~/code/r/GenotypeCheck/data/bear_data_part2.csv"), index_column = "index", locus_columns = locus_columns,
         meta_columns = c(date = "date", north = "north", east = "east", gender = "gender"))
 }
 
