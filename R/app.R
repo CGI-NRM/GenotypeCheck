@@ -23,7 +23,7 @@ ui <- shiny::fluidPage(
                             shiny::uiOutput(outputId = "load_data_sheet"),
                             shiny::uiOutput(outputId = "load_data_choice"),
                             shiny::uiOutput(outputId = "load_data_locuses"),
-                            shiny::uiOutput(outputId = "load_data_button")
+                            shiny::uiOutput(outputId = "load_data_button_holder")
                         ),
                         mainPanel = shiny::mainPanel(
                             DT::dataTableOutput(outputId = "dataset_table")
@@ -86,7 +86,7 @@ ui <- shiny::fluidPage(
                                                 shiny::uiOutput(outputId = "load_new_data_sheet"),
                                                 shiny::uiOutput(outputId = "load_new_data_choice"),
                                                 shiny::uiOutput(outputId = "load_new_data_locuses"),
-                                                shiny::uiOutput(outputId = "load_new_data_button")
+                                                shiny::uiOutput(outputId = "load_new_data_button_holder")
                                             )
                                         ),
                                         mainPanel = shiny::mainPanel(
@@ -118,7 +118,7 @@ ui <- shiny::fluidPage(
                                             shiny::actionButton(inputId = "generate_threshold_plot", label = "Generate Threshold Plot"),
                                             shiny::tags$hr(),
                                             shiny::numericInput(inputId = "match_threshold", label = "Distance Threshold To Match", value = 0, min = 0),
-                                            shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data"),
+                                            shiny::uiOutput(outputId = "match_new_against_data_holder"),
                                             shiny::textOutput(outputId = "you_need_to_calculate_distances")
                                         ),
                                         mainPanel = shiny::mainPanel(
@@ -196,8 +196,9 @@ ui <- shiny::fluidPage(
             shiny::h3("Export Data"),
             shiny::downloadButton(outputId = "export_nrm", label = "Export All Samples With A Temporary (NRM) Id"),
             shiny::downloadButton(outputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
+            shiny::tags$hr(),
             shiny::dateInput(inputId = "export_new_from_date", label = "Export All New Datapoints Since: ", max = Sys.time()),
-            shiny::downloadButton(outputId = "export_new", label = "Export Newly Matched Samples With Individ Data Based On Date")
+            shiny::downloadButton(outputId = "export_new", label = "Export Data Added Since Date")
         )
     )
 )
@@ -214,6 +215,9 @@ server <- function(input, output, session) {
     output$load_data_hint <- shiny::renderText("You Need To Load The Dataset Before You Can Match New Data Against It")
     output$load_data_before_match <- shiny::renderText("You Need To Load Some New Data Before You Can Match It Against The Dataset")
     output$load_data_and_generate_distances_merge_tab <- shiny::renderText("You Need To Load Data And Match New Data Against It Before You Can Use This Tab")
+    output$match_new_against_data_holder <- shiny::renderUI({
+        shiny::actionButton(inputId = "match_new_against_data", label = "Match Against Data")
+    })
 
     shiny::observeEvent(input$data_file, {
         shiny::req(input$data_file)
@@ -284,7 +288,7 @@ server <- function(input, output, session) {
             )
         })
 
-        output$load_new_data_button <- shiny::renderUI({
+        output$load_new_data_button_holder <- shiny::renderUI({
             shiny::actionButton(inputId = "load_new_data_button", label = "Load New Data")
         })
     })
@@ -334,7 +338,7 @@ server <- function(input, output, session) {
             )
         })
 
-        output$load_data_button <- shiny::renderUI({
+        output$load_data_button_holder <- shiny::renderUI({
             shiny::actionButton(inputId = "load_data_button", label = "Load Data")
         })
     })
@@ -366,8 +370,8 @@ server <- function(input, output, session) {
 
         update_main_table()
 
+        output$load_data_button_holder <- shiny::renderUI({})
         output$load_data_hint <- shiny::renderText("")
-
         output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
     })
 
@@ -400,6 +404,7 @@ server <- function(input, output, session) {
             df
         })
 
+        output$load_new_data_button_holder <- shiny::renderUI({})
         output$load_data_before_match <- shiny::renderText("")
         output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " :|:  "))
         output$sanity_check <- shiny::renderText("Sanity Check")
@@ -480,6 +485,7 @@ server <- function(input, output, session) {
         })
 
         output$load_data_and_generate_distances_merge_tab <- shiny::renderText("")
+        output$match_new_against_data_holder <- shiny::renderUI({})
         update_amount_texts()
     })
 
