@@ -42,6 +42,6 @@ names(locus_columns) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 
     "MU23 - 1", "MU23 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1",
     "G10L - 2", "MU50 - 1", "MU50 - 2")
 data <- load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
-    locus_columns = locus_columns, individ_column = "individ", meta_columns = c(gender = "gender", date = "date", north = "north", east = "east"))
+    locus_columns = locus_columns, individ_column = "individ", meta_columns = c(gender = "gender", 
 }
 }

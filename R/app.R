@@ -1,3 +1,5 @@
+library(dplyr)
+
 SWEREF99 <- sp::CRS("+init=epsg:3006")
 WGS84 <- sp::CRS("+init=epsg:4326")
 
@@ -197,7 +199,8 @@ ui <- shiny::fluidPage(
             shiny::downloadButton(outputId = "export_nrm", label = "Export All Samples With A Temporary (NRM) Id"),
             shiny::downloadButton(outputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
             shiny::tags$hr(),
-            shiny::dateInput(inputId = "export_new_from_date", label = "Export All New Datapoints Since: ", max = Sys.time()),
+            shiny::uiOutput(outputId = "dates_for_export"),
+            # shiny::dateInput(inputId = "export_new_from_date", label = "Export All New Datapoints Since: ", max = Sys.time()),
             shiny::downloadButton(outputId = "export_new", label = "Export Data Added Since Date")
         )
     )
@@ -575,11 +578,13 @@ server <- function(input, output, session) {
             length(individs) == 1
         }))
 
+        date_of_change <- Sys.time()
+
         lapply(new_data$meta$index[one_individ_match], function (ind) {
             individs <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
             new_individ <- individs[!is.na(individs)][1]
 
-            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+            merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
         })
 
         data <<- merged_data
@@ -596,13 +601,15 @@ server <- function(input, output, session) {
         output$merge_zero_return_message <- shiny::renderText("")
         merged_data <<- data
 
+        date_of_change <- Sys.time()
+
         have_zero <- unlist(lapply(new_data$distances, function(x) { sort(x)[1] == 0 }))
         lapply(new_data$meta$index[have_zero], function(ind) {
             indexes <- names(new_data$distances[[ind]][new_data$distances[[ind]] == 0])
             new_individ <- data$meta[indexes, "individ"]
             new_individ <- new_individ[!is.na(new_individ)][1]
 
-            merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, new_individ)$data
+            merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
         })
 
         data <<- merged_data
@@ -620,9 +627,12 @@ server <- function(input, output, session) {
 
         merged_data <<- data
 
+        date_of_change <- Sys.time()
+
         lapply(new_data$meta$index, function(ind) {
             if (sum(!is.na(merged_data$meta[possible_matches[[ind]]$ids, "individ"])) == 0) {
-                merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, ind), merged_data, get_next_nrm_id(new_data, merged_data))$data
+                merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data), 
+                    date_of_change = date_of_change)$data
             }
         })
 
@@ -759,6 +769,7 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent({input$export_new_from_date
+                         input$export_new_to_date
                          input$main_panel
                          1}, {
         output$export_new <- shiny::downloadHandler(
@@ -766,7 +777,7 @@ server <- function(input, output, session) {
                 paste0("DataExport_New_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")
             },
             content = function(file) {
-                ids <- data$meta$index[data$meta$date_changed > input$export_new_from_date]
+                ids <- data$meta$index[input$export_new_from_date <= data$meta$date_changed & data$meta$date_changed <= input$export_new_to_date]
                 ids <- ids[!is.na(ids)]
                 df <- cbind(data$meta[ids,], data$multilocus[ids,])
                 write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
@@ -775,6 +786,19 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$main_panel, {
+        output$dates_for_export <- shiny::renderUI({
+            times <- unique(data$meta$date_changed)
+            times <- times[!is.na(times)]
+            if (length(times) == 0) {
+                return(shiny::h5("No Data With Date Date Was Found"))
+            } else {
+                return(shiny::tagList(
+                    shiny::selectInput(inputId = "export_new_from_date", label = "Export Start: ", choices = times),
+                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times) 
+                ))     
+            }
+        })
+
         output$export_nrm <- shiny::downloadHandler(
             filename = function() {
                 paste0("DataExport_AllNRM_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")
