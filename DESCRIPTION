@@ -12,9 +12,10 @@ Imports:
   dplyr,
   DT,
   leaflet,
-  readxl,
-  readODS,
   rgdal,
-  RSQLite,
   shiny,
   stringr
+Suggests:
+  readODS,
+  readxl,
+  RSQLite

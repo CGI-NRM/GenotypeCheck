@@ -251,32 +251,32 @@ server <- function(input, output, session) {
 
         output$load_new_data_choice <- shiny::renderUI({
             shiny::tagList(
-                shiny::selectInput(inputId = "load_new_data_choice_index_col", label = "Index Column: ", choices = headers, selected = "SEP", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_date_col", label = "Date Column: ", choices = headers, selected = "Funnetdatum", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "Kon", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_north_col", label = "North Column: ", choices = headers, selected = "Nord", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_east_col", label = "East Column: ", choices = headers, selected = "Ost", multiple = FALSE)
+                shiny::selectInput(inputId = "load_new_data_choice_index_col", label = "Index Column: ", choices = headers, selected = "index", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_date_col", label = "Date Column: ", choices = headers, selected = "date", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "gender", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_north_col", label = "North Column: ", choices = headers, selected = "north", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE)
             )
         })
 
         output$load_new_data_locuses <- shiny::renderUI({
             shiny::tagList(
-                shiny::selectInput(inputId = "load_new_data_choice_locus_1", label = "G10L - 1", choices = headers, selected = "G10L", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_2", label = "G10L - 2", choices = headers, selected = "G10L.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_3", label = "MU05 - 1", choices = headers, selected = "MU05", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_4", label = "MU05 - 2", choices = headers, selected = "MU05.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_5", label = "MU09 - 1", choices = headers, selected = "MU09", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_6", label = "MU09 - 2", choices = headers, selected = "MU09.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_7", label = "MU10 - 1", choices = headers, selected = "MU10", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_8", label = "MU10 - 2", choices = headers, selected = "MU10.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_9", label = "MU23 - 1", choices = headers, selected = "MU23", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_10", label = "MU23 - 2", choices = headers, selected = "MU23.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_11", label = "MU50 - 1", choices = headers, selected = "MU50", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_12", label = "MU50 - 2", choices = headers, selected = "MU50.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_13", label = "MU51 - 1", choices = headers, selected = "MU51", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_14", label = "MU51 - 2", choices = headers, selected = "MU51.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_15", label = "MU59 - 1", choices = headers, selected = "MU59", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_locus_16", label = "MU59 - 2", choices = headers, selected = "MU59.1", multiple = FALSE)
+                shiny::selectInput(inputId = "load_new_data_choice_locus_1", label = "G10L - 1", choices = headers, selected = "G10L_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_2", label = "G10L - 2", choices = headers, selected = "G10L_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_3", label = "MU05 - 1", choices = headers, selected = "MU05_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_4", label = "MU05 - 2", choices = headers, selected = "MU05_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_5", label = "MU09 - 1", choices = headers, selected = "MU09_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_6", label = "MU09 - 2", choices = headers, selected = "MU09_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_7", label = "MU10 - 1", choices = headers, selected = "MU10_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_8", label = "MU10 - 2", choices = headers, selected = "MU10_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_9", label = "MU23 - 1", choices = headers, selected = "MU23_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_10", label = "MU23 - 2", choices = headers, selected = "MU23_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_11", label = "MU50 - 1", choices = headers, selected = "MU50_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_12", label = "MU50 - 2", choices = headers, selected = "MU50_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_13", label = "MU51 - 1", choices = headers, selected = "MU51_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_14", label = "MU51 - 2", choices = headers, selected = "MU51_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_15", label = "MU59 - 1", choices = headers, selected = "MU59_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_locus_16", label = "MU59 - 2", choices = headers, selected = "MU59_2", multiple = FALSE)
             )
         })
 
@@ -299,33 +299,33 @@ server <- function(input, output, session) {
 
         output$load_data_choice <- shiny::renderUI({
             shiny::tagList(
-                shiny::selectInput(inputId = "load_data_choice_index_col", label = "Index Column: ", choices = headers, selected = "SEP", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_date_col", label = "Date Column: ", choices = headers, selected = "Funnetdatum", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "Kon", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_north_col", label = "North Column: ", choices = headers, selected = "Nord", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_east_col", label = "East Column: ", choices = headers, selected = "Ost", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_individ_col", label = "Individ Column: ", choices = headers, selected = "Individ", multiple = FALSE)
+                shiny::selectInput(inputId = "load_data_choice_index_col", label = "Index Column: ", choices = headers, selected = "index", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_date_col", label = "Date Column: ", choices = headers, selected = "date", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "gender", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_north_col", label = "North Column: ", choices = headers, selected = "north", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_individ_col", label = "Individ Column: ", choices = headers, selected = "individ", multiple = FALSE)
             )
         })
 
         output$load_data_locuses <- shiny::renderUI({
             shiny::tagList(
-                shiny::selectInput(inputId = "load_data_choice_locus_1", label = "G10L - 1", choices = headers, selected = "G10L", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_2", label = "G10L - 2", choices = headers, selected = "G10L.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_3", label = "MU05 - 1", choices = headers, selected = "MU05", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_4", label = "MU05 - 2", choices = headers, selected = "MU05.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_5", label = "MU09 - 1", choices = headers, selected = "MU09", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_6", label = "MU09 - 2", choices = headers, selected = "MU09.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_7", label = "MU10 - 1", choices = headers, selected = "MU10", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_8", label = "MU10 - 2", choices = headers, selected = "MU10.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_9", label = "MU23 - 1", choices = headers, selected = "MU23", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_10", label = "MU23 - 2", choices = headers, selected = "MU23.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_11", label = "MU50 - 1", choices = headers, selected = "MU50", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_12", label = "MU50 - 2", choices = headers, selected = "MU50.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_13", label = "MU51 - 1", choices = headers, selected = "MU51", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_14", label = "MU51 - 2", choices = headers, selected = "MU51.1", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_15", label = "MU59 - 1", choices = headers, selected = "MU59", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_locus_16", label = "MU59 - 2", choices = headers, selected = "MU59.1", multiple = FALSE)
+                shiny::selectInput(inputId = "load_data_choice_locus_1", label = "G10L - 1", choices = headers, selected = "G10L_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_2", label = "G10L - 2", choices = headers, selected = "G10L_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_3", label = "MU05 - 1", choices = headers, selected = "MU05_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_4", label = "MU05 - 2", choices = headers, selected = "MU05_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_5", label = "MU09 - 1", choices = headers, selected = "MU09_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_6", label = "MU09 - 2", choices = headers, selected = "MU09_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_7", label = "MU10 - 1", choices = headers, selected = "MU10_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_8", label = "MU10 - 2", choices = headers, selected = "MU10_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_9", label = "MU23 - 1", choices = headers, selected = "MU23_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_10", label = "MU23 - 2", choices = headers, selected = "MU23_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_11", label = "MU50 - 1", choices = headers, selected = "MU50_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_12", label = "MU50 - 2", choices = headers, selected = "MU50_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_13", label = "MU51 - 1", choices = headers, selected = "MU51_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_14", label = "MU51 - 2", choices = headers, selected = "MU51_2", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_15", label = "MU59 - 1", choices = headers, selected = "MU59_1", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_locus_16", label = "MU59 - 2", choices = headers, selected = "MU59_2", multiple = FALSE)
             )
         })
 
@@ -367,8 +367,7 @@ server <- function(input, output, session) {
 
     update_main_table <- function() {
         output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
-            combined_multilocus <- apply(data$multilocus, 1, combine_multilocus)
-            df <- data.frame(multilocus = combined_multilocus)
+            df <- data.frame(multilocus = data$combined_multilocus)
             rownames(df) <- names(combined_multilocus)
             df <- cbind(index = data$meta$index, df, data$meta[colnames(data$meta) != "index"])
             df

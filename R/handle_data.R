@@ -1,14 +1,45 @@
 library(dplyr)
-library(readxl)
-library(readODS)
 
-load_data <- function(file_path, index_column, locus_columns, individ_column = NA, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
+#' Load Original Dataset
+#'
+#' @param file_path The path to a file, either a .csv, .ods, excel file or SQLite database.
+#' @param index_column The name of the column that contains indexes, a unique identifier for each row of data. In the example data
+#' this column is called "index"
+#' @param locus_columns A vector with the columns that contain the locus data. In the example data these are: c("G10L_1", "G10L_2",
+#' "MU05_1", "MU05_2", ..., "MU59_2").
+#' @param individ_column The name of the column that contains the id of the individual the sample belongs to. When loading new data to
+#' be compared this is set to NA as the new data don't have any individual-classification
+#' @param meta_columns A vector with the columns that contain the meta-data for each row. In the example data these are: c(date = "date",
+#' north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.
+#' @param na_strings A vector of strings that are to be interpreted as NA values. Default is "NA", "-99", "0", and "000".
+#' @param sheet If a .ods or excel file is loaded, this variable is required and specifies the sheet to be loaded.
+#'
+#' @return A data object that is used in the rest of this package.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' See workflow.R
+#' }
+load_data <- function(file_path, index_column, locus_columns, individ_column = NA, meta_columns, na_strings = c("NA", "-99", "0", "000"), sheet = 1) {
     if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
-        raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
+        if (requireNamespace("readxl", quietly = TRUE)) {
+            stop("Package \"readxl\" is needed to read excel files.")
+        } else {
+            raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
+        }
     } else if (endsWith(file_path, ".ods")) {
-        raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
+        if (requireNamespace("readODS", quietly = TRUE)) {
+            stop("Package \"readODS\" is needed to read .ods files.")
+        } else {
+            raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
+        }
     } else if (endsWith(file_path, ".db")) {
-        raw_data <- load_data_sqlite(file_path)
+        if (requireNamespace("RSQLite", quietly = TRUE)) {
+            stop("Package \"RSQLite\" is needed to read sqlite3 databases (\'.db\' files).")
+        } else {
+            raw_data <- load_data_sqlite(file_path)
+        }
     } else {
         raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
@@ -25,7 +56,6 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
     colnames(meta_data) <- c("index", names(meta_columns), "individ")
     rownames(meta_data) <- meta_data$index
 
-    # apply(c(1, 2) <- is this needed? 
     locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
         apply(1:2, as.numeric)
     colnames(locus_data) <- c(names(locus_columns))
@@ -34,12 +64,24 @@ load_data <- function(file_path, index_column, locus_columns, individ_column = N
 
     combined_locus_data <- apply(locus_data, 1, combine_multilocus)
 
-    data <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(locus_columns), 
+    data <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(locus_columns),
         meta_column_names = c("index", names(meta_columns), "individ"), multilocus_names = "index")
     data
 }
 
-# TODO : Work on this
+
+#' (load_data helper function) Loads a SQLite database from a file
+#'
+#' @param file_path The path to the *.db file to be loaded.
+#' @param table The name of the table in the database that contains the desired data. Default is "Bears".
+#'
+#' @return A table with all data from the table
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' raw_data <- load_data_sqlite(file_path = "path/to/file.db", table = "Bears")
+#' }
 load_data_sqlite <- function(file_path, table = "Bears") {
     db <- RSQLite::dbConnect(RSQLite::SQLite(), file_path)
     query <- sprintf("SELECT * FROM %s", table)
@@ -50,6 +92,24 @@ load_data_sqlite <- function(file_path, table = "Bears") {
     raw_data
 }
 
+#' Create a single new data point from given data
+#'
+#' @param index The index of this datapoint.
+#' @param multilocus A named vector with the multilocus of this datapoint.
+#' @param meta A named vector with all metadata for this new datapoint.
+#' @param na_strings A string with the values that are to be interpeted as NA values.
+#'
+#' @return A new_data object, similar to the data object but missing values in the "individ" column.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' locus_data <- c("110", "112", "143", "145", "123", "127", "164", "170", "150", "150", "230", "248", "184", "186", "128", "132")
+#' names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2", "MU23 - 1", "MU23 - 2",
+#'                        "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1", "G10L - 2", "MU50 - 1", "MU50 - 2")
+#
+#' new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
+#' }
 create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99", "000", "0")) {
     multilocus[multilocus %in% na_strings] <- NA
 
@@ -69,15 +129,47 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     meta_data$north <- as.numeric(meta_data$north)
     meta_data$east <- as.numeric(meta_data$east)
 
-    ndata <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"), 
+    ndata <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"),
         distances = list(distances = c(NULL), names_type = c(NULL)))
     ndata
 }
 
+
+#' Load A File Containing New Data
+#'
+#' @description This is a wrapper function for load_data function.
+#'
+#' @param file_path The path to the file to be loaded.
+#' @param index_column The name of the column containing the index.
+#' @param locus_columns A vector with the names of the columns that contains the locus data.
+#' @param meta_columns A vector with the names of the columns that contains the meta data.
+#' @param na_strings A vector with string that are to be interpeted as NA values.
+#' @param sheet If a .ods or excel file is loaded, this is the sheet that will be loaded.
+#'
+#' @return A new_data object, similar to a data object but missing the "individ" column.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' See workflow.R
+#' }
 create_new_data_batch <- function(file_path, index_column, locus_columns, meta_columns, na_strings = c("NA", "-99", "000"), sheet = 1) {
     load_data(file_path = file_path, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns, na_strings = na_strings, sheet = sheet)
 }
 
+#' Sanity Check New Data
+#'
+#' @param new_data A new_data object, created by the "create_new_data_batch" and "create_new_data" functions.
+#' @param data A data object, created by the "load_data" function.
+#'
+#' @return A vector of messaged that contains information on the sanity of the new data.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' sanity_message <- sanity_check_new_data(new_data = new_data, data = data)
+#' print(sanity_message)
+#' }
 sanity_check_new_data <- function(new_data, data) {
     problems <- c()
 
@@ -127,25 +219,101 @@ sanity_check_new_data <- function(new_data, data) {
 # multilocus1 <- c(110, 112, 132, 128)
 # multilocus2 <- c(96, 108, 118, 112)
 # res <- dist_euclidian(list(multilocus1, multilocus2))
+
+
+#' An Euclidian Distance function
+#'
+#' @param multilocus1 A vector with the locuses of the first object to be compared.
+#' @param multilocus2 A vector with the locuses of the second object to be compared.
+#'
+#' @return The euclidian distance between the locuses.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' l1 <- c(182, 180, 178, 176)
+#' l2 <- c(178, 180, 178, 178)
+#' dis <- dist_euclidian(l1, l2)
+#' }
 dist_euclidian <- function(multilocus1, multilocus2) {
     sqrt(sum((multilocus1 - multilocus2) ^ 2, na.rm = TRUE))
 }
 
+#' An Manhattan Distance function
+#'
+#' @param multilocus1 A vector with the locuses of the first object to be compared.
+#' @param multilocus2 A vector with the locuses of the second object to be compared.
+#'
+#' @return The manhattan distance between the locuses.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' l1 <- c(182, 180, 178, 176)
+#' l2 <- c(178, 180, 178, 178)
+#' dis <- dist_euclidian(l1, l2)
+#' }
 dist_manhattan <- function(multilocus1, multilocus2) {
     sum(abs(multilocus1 - multilocus2), na.rm = TRUE)
 }
 
+#' An Maximum Distance function
+#'
+#' @param multilocus1 A vector with the locuses of the first object to be compared.
+#' @param multilocus2 A vector with the locuses of the second object to be compared.
+#'
+#' @return The distance between the specific locuses that had the maximum distance.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' l1 <- c(182, 180, 178, 176)
+#' l2 <- c(178, 180, 178, 180)
+#' dis <- dist_euclidian(l1, l2)
+#' }
 dist_maximum <- function(multilocus1, multilocus2) {
     max(abs(multilocus1 - multilocus2), na.rm = TRUE)
 }
 
+#' An Number of Non-matches Distance function
+#'
+#' @param multilocus1 A vector with the locuses of the first object to be compared.
+#' @param multilocus2 A vector with the locuses of the second object to be compared.
+#'
+#' @return The number of locuses that did not match. Missing data are counted as matches.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' l1 <- c(182, 180, 178, 176)
+#' l2 <- c(178, 180, 178, 178)
+#' dis <- dist_euclidian(l1, l2)
+#' }
 dist_num_mismatches <- function(multilocus1, multilocus2) {
-    sum(!(multilocus1 == multilocus2))
+    sum(!(multilocus1 == multilocus2), na.rm = TRUE)
 }
+
 
 # Apply to distances of new_data to ensure this data is not combined with the wrong new_data
 # Example:
-# new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian) 
+# new_data$distances <- calculate_new_data_distances(new_data, data, dist_euclidian)
+
+#' Calculate the distances from the new data to the existing data.
+#'
+#' @param new_data A new_data object.
+#' @param data A data object.
+#' @param distance_function The function to be used for the distance. "dist_" functions are given by the package.
+#'
+#' @return A multi-dimentional list with the distance from each of the new data to the data.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # OBS Apply the result of this function to the distance of the new_data, as this is required for other functions to work.
+#'
+#' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data, distance_function = dist_euclidian)
+#'
+#' }
 calculate_new_data_distances <- function(new_data, data, distance_function) {
 
     distances <- list()
@@ -164,12 +332,39 @@ calculate_new_data_distances <- function(new_data, data, distance_function) {
     distances
 }
 
+#' Combine A Vector Of Locuses Into A String
+#'
+#' @param locus A vector with the locuses.
+#'
+#' @return A string with all of the locuses combined.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' print(combine_multilocus(c(182, 180, NA, 96)))
+#' [1] "182 180 000 096"
+#' }
 combine_multilocus <- function(locus) {
     locus[is.na(locus)] <- 0
     locus %>% formatC(width = 3, flag = "0", format = "d") %>%
         paste0(collapse = " ")
 }
 
+#' Gather all of the data the user could be interested in when choosing to merge the new_data.
+#'
+#' @param possible_matches A possible_matches object generated by the "match_new_data" function
+#' @param new_data A new_data object.
+#' @param data A data object.
+#' @param ind The index for which the dataframe should be generated.
+#'
+#' @return A dataframe with a index, multilocus, distance, and individ column. All data of every individual where atleast one point was
+#' within the threshold is included in the dataframe.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' df <- generate_user_choice_data_frame(possible_matches = possible_matches, new_data = new_data, data = data, ind = "SEP0159539")
+#' }
 generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind) {
     individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
     ids <- data$meta[data$meta$individ %in% individuals, "index"]
@@ -200,16 +395,26 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
     df
 }
 
-# EASY TO SPEED UP; REMOVE LOPS TODO::: TODO
+#' Generate threshold plot
+#'
+#' @param new_data A new_data object.
+#' @param data A data object.
+#'
+#' @return Renders a plot showing how different thresholds would affect the resulting merge.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' generate_threshold_plot(new_data = new_data, data = data)
+#' }
 generate_threshold_plot <- function(new_data, data) {
     min_dist <- min(unlist(new_data$distances))
-    # max_dist <- max(unlist(new_data$distances))
     max_dist <- max(unlist(lapply(new_data$meta$index, function(ind) {
         sum(sort(new_data$distances[[ind]])[1:2], na.rm = TRUE)
     })))
 
     temp_thres <- min_dist + (max_dist - min_dist) * seq(0, 1, 0.01)
-    matches <- data.frame(lapply(temp_thres, function(thres) { 
+    matches <- data.frame(lapply(temp_thres, function(thres) {
         nums <- data.frame(lapply(new_data$meta$index, function(ind) {
             ids <- names(new_data$distances[[ind]])[new_data$distances[[ind]] <= thres]
             ids <- ids[ids %in% data$meta$index]
@@ -225,6 +430,16 @@ generate_threshold_plot <- function(new_data, data) {
     legend(x = "right", y = (min(temp_thres) + max(temp_thres)) / 2, legend = c("Non-matches", "Multiple Matches"), col = c("blue", "red"), lty = 1, pch = 16)
 }
 
+#' Match New Data (Generate possible_matches object)
+#'
+#' @param new_data A new_data object.
+#' @param threshold A value for under which threshold the new data will be matched to the existing data.
+#'
+#' @return A named list containing a vector of all data with a distance under the threshold. If the new_data$distances is generated as
+#' expected, new_data can be matched against both new_data and data points. Be aware the refrenced indexes might exist in different objects.
+#' @export
+#'
+#' @examples
 match_new_data <- function(new_data, threshold) {
     if (is.null(new_data$distances)) {
         warning("The new data needs to get the distances assigned to it, use the 'calculate_new_data_distances' function")
@@ -239,11 +454,39 @@ match_new_data <- function(new_data, threshold) {
     possible_matches
 }
 
+#' Extract One Index From Batch of New_Data
+#'
+#' @param batch A new_data object.
+#' @param index The index of the new_data to be extracted.
+#'
+#' @return A new_data object that only contains one point of new data.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' new_data_one <- extract_one_index_from_batch(batch = new_data, index = "SEP0159539")
+#' }
 extract_one_index_from_batch <- function(batch, index) {
-    list(multilocus = batch$multilocus[index,], meta = batch$meta[index,], locus_column_names = batch$locus_column_names, 
+    list(multilocus = batch$multilocus[index,], meta = batch$meta[index,], locus_column_names = batch$locus_column_names,
         meta_column_names = batch$meta_column_names, multilocus_names = batch$multilocus_names)
 }
 
+#' Merge New Data Into The Dataset
+#'
+#' @param new_data A new_data object with one datapoint. Generated by extract_one_index_from_batch.
+#' @param data A data object.
+#' @param new_data_id The new individ-id for the datapoint in new_data.
+#'
+#' @return A list with $data that contains the new data and $success that is either TRUE or FALSE depending on if the function succeeded.
+#' The test is rudimentary and weird/broken or corrupt data may be generated even if this value is TRUE.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' ind <- "SEP0159539"
+#' new_id <- possible_matches[[ind]]$ids[1]
+#' merged_data <- merge_new_data(new_data = extract_one_index_from_batch(batch = new_data, index = ind), data = data, new_data_id = new_id)
+#' }
 merge_new_data <- function(new_data, data, new_data_id) {
     if (is.na(new_data_id) | is.null(new_data_id)) {
         return(list(data = data, success = FALSE))
