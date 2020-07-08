@@ -12,8 +12,9 @@ Imports:
   dplyr,
   DT,
   leaflet,
-  rgdal,
+  lubridate,
   shiny,
+  sp,
   stringr
 Suggests:
   readODS,

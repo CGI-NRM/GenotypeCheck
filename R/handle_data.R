@@ -1,18 +1,19 @@
 library(dplyr)
 
 #' Helper Function to load different forms of data
-#' 
+#'
 #' @param file_path The path to a file, either a .csv, .ods, excel file or SQLite database.
 #' @param sheet If a .ods or excel file is loaded, this variable is required and specifies the sheet to be loaded.
-#' 
-#' return A table with all columns of the file or database
-#' export
-#' 
-#' examples
+#' @param na_strings A vector of strings that are to be interpreted as NA values. Default is "NA", "-99", "0", and "000".
+#'
+#' @return A table with all columns of the file or database
+#' @export
+#'
+#' @examples
 #' \dontrun{
 #' raw_data <- load_raw_data(file_path = "./data/bear_data_all.csv")
 #' }
-load_raw_data <- function(file_path, sheet = 1) {
+load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0", "000")) {
     if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
         if (requireNamespace("readxl", quietly = TRUE)) {
             stop("Package \"readxl\" is needed to read excel files.")
@@ -49,7 +50,6 @@ load_raw_data <- function(file_path, sheet = 1) {
 #' be compared this is set to NA as the new data don't have any individual-classification
 #' @param meta_columns A vector with the columns that contain the meta-data for each row. In the example data these are: c(date = "date",
 #' north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.
-#' @param na_strings A vector of strings that are to be interpreted as NA values. Default is "NA", "-99", "0", and "000".
 #'
 #' @return A data object that is used in the rest of this package.
 #' @export
@@ -64,22 +64,23 @@ load_raw_data <- function(file_path, sheet = 1) {
 #'     "MU23 - 1", "MU23 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1",
 #'     "G10L - 2", "MU50 - 1", "MU50 - 2")
 #
-#' data <- load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index", 
+#' data <- load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
 #'     locus_columns = locus_columns, individ_column = "individ", meta_columns = c(gender = "gender", date = "date", north = "north", east = "east"))
 #' }
-load_data <- function(raw_data, index_column, locus_columns, individ_column = NA, meta_columns, na_strings = c("NA", "-99", "0", "000")) {
-    raw_data <- load_raw_data(file_path, sheet)
+load_data <- function(raw_data, index_column, locus_columns, individ_column = NA, meta_columns) {
 
     if (raw_data %>% dplyr::select(dplyr::all_of(index_column)) %>% duplicated() %>% sum() >= 1) {
         warning("The indexes are not a unique identifier.")
     }
 
     if (is.na(individ_column)) {
-        meta_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(index_column), dplyr::all_of(meta_columns)), NA)
+        meta_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(index_column), dplyr::all_of(meta_columns)), NA, NA)
+        colnames(meta_data) <- c("index", names(meta_columns), "date_changed", "individ")
     } else {
         meta_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(index_column), dplyr::all_of(meta_columns), dplyr::all_of(individ_column)))
+        colnames(meta_data) <- c("index", names(meta_columns), "individ")
     }
-    colnames(meta_data) <- c("index", names(meta_columns), "individ")
+
     rownames(meta_data) <- meta_data$index
 
     locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
@@ -172,7 +173,6 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
 #' @param index_column The name of the column containing the index.
 #' @param locus_columns A vector with the names of the columns that contains the locus data.
 #' @param meta_columns A vector with the names of the columns that contains the meta data.
-#' @param na_strings A vector with string that are to be interpeted as NA values.
 #'
 #' @return A new_data object, similar to a data object but missing the "individ" column.
 #' @export
@@ -181,8 +181,8 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
 #' \dontrun{
 #' See "?load_data" and "?create_new_data"
 #' }
-create_new_data_batch <- function(raw_data, index_column, locus_columns, meta_columns, na_strings = c("NA", "-99", "000")) {
-    load_data(raw_data, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns, na_strings = na_strings)
+create_new_data_batch <- function(raw_data, index_column, locus_columns, meta_columns) {
+    load_data(raw_data, index_column = index_column, locus_columns = locus_columns, individ_column = NA, meta_columns = meta_columns)
 }
 
 #' Sanity Check New Data
@@ -490,7 +490,7 @@ match_new_data <- function(new_data, threshold) {
 #' }
 extract_one_index_from_batch <- function(batch, index) {
     list(multilocus = batch$multilocus[index,], meta = batch$meta[index,], locus_column_names = batch$locus_column_names,
-        meta_column_names = batch$meta_column_names, multilocus_names = batch$multilocus_names)
+        meta_column_names = batch$meta_column_names, multilocus_names = batch$multilocus_names, combined_locus_data = batch$combined_locus_data[[index]])
 }
 
 #' Merge New Data Into The Dataset
@@ -519,12 +519,17 @@ merge_new_data <- function(new_data, data, new_data_id) {
         return(list(data = data, success = FALSE))
     }
 
+    new_data$meta$date_changed <- c(format(lubridate::ymd_hms(Sys.time())))
+
     df_multi <- data.frame(as.list(new_data$multilocus))
     rownames(df_multi) <- new_data$meta$index
     colnames(df_multi) <- colnames(data$multilocus)
     data$multilocus <- data$multilocus %>% rbind(df_multi)
     new_data$meta$individ <- new_data_id
-    data$meta <- data$meta %>% rbind(new_data$meta)
+    data$meta <- rbind(data$meta, new_data$meta)
+
+    names(new_data$combined_locus_data) <- new_data$meta$index
+    data$combined_locus_data <- c(data$combined_locus_data, new_data$combined_locus_data)
 
     list(data = data, success = TRUE)
 }

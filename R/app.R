@@ -9,12 +9,9 @@ ui <- shiny::fluidPage(
     shiny::titlePanel("Match Genotype"),
 
     shiny::actionButton(inputId = "save", label = "Save Changes"),
-    shiny::actionButton(inputId = "export_nrm", label = "Export All Samples With A Temporary (NRM) Id"),
-    shiny::actionButton(inputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
-    shiny::actionButton(inputId = "export_new", label = "Export All Newly Matched Samples With Individ Data"),
     shiny::tags$hr(),
 
-    shiny::tabsetPanel(
+    shiny::tabsetPanel(id = "main_panel",
         shiny::tabPanel(
             title = "Load Dataset", value = "load_dataset",
             shiny::fluidRow(
@@ -193,9 +190,18 @@ ui <- shiny::fluidPage(
                     DT::dataTableOutput(outputId = "new_names_match_table")
                 )
             )
+        ),
+        shiny::tabPanel(
+            title = "Export Data", value = "export_tab",
+            shiny::h3("Export Data"),
+            shiny::downloadButton(outputId = "export_nrm", label = "Export All Samples With A Temporary (NRM) Id"),
+            shiny::downloadButton(outputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
+            shiny::dateInput(inputId = "export_new_from_date", label = "Export All New Datapoints Since: ", max = Sys.time()),
+            shiny::downloadButton(outputId = "export_new", label = "Export Newly Matched Samples With Individ Data Based On Date")
         )
     )
 )
+
 
 server <- function(input, output, session) {
 
@@ -302,7 +308,8 @@ server <- function(input, output, session) {
                 shiny::selectInput(inputId = "load_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "gender", multiple = FALSE),
                 shiny::selectInput(inputId = "load_data_choice_north_col", label = "North Column: ", choices = headers, selected = "north", multiple = FALSE),
                 shiny::selectInput(inputId = "load_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_individ_col", label = "Individ Column: ", choices = headers, selected = "individ", multiple = FALSE)
+                shiny::selectInput(inputId = "load_data_choice_individ_col", label = "Individ Column: ", choices = headers, selected = "individ", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_date_changed_col", label = "Date Changed Column: ", choices = headers, selected = "date_changed", multiple = FALSE)
             )
         })
 
@@ -333,7 +340,7 @@ server <- function(input, output, session) {
     })
 
     load_file_headers <- function(file_path, sheet) {
-        colnames(load_raw_data())
+        colnames(load_raw_data(file_path = file_path, sheet = sheet))
         if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
             raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, sheet = sheet)
         } else if (endsWith(file_path, ".ods")) {
@@ -355,7 +362,7 @@ server <- function(input, output, session) {
 
         data <<- load_data(load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
                            meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col,
-                           gender = input$load_data_choice_gender_col))
+                           gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col))
 
         update_main_table()
 
@@ -366,9 +373,8 @@ server <- function(input, output, session) {
 
     update_main_table <- function() {
         output$dataset_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
-            df <- data.frame(multilocus = data$combined_locus_data)
-            rownames(df) <- names(data$combined_locus_data)
-            df <- cbind(index = data$meta$index, df, data$meta[colnames(data$meta) != "index"])
+            df <- data.frame(index = data$meta$index, multilocus = data$combined_locus_data)
+            df <- cbind(df, data$meta[,colnames(data$meta) != "index"])
             df
         })
     }
@@ -390,7 +396,7 @@ server <- function(input, output, session) {
             df <- data.frame(multilocus = new_data$combined_locus_data)
             rownames(df) <- names(new_data$combined_locus_data)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
-            df <- df[,colnames(df) != "individ"]
+            df <- df[,colnames(df) != "individ" & colnames(df) != "date_changed"]
             df
         })
 
@@ -414,7 +420,7 @@ server <- function(input, output, session) {
             df <- data.frame(multilocus = new_data$combined_locus_data)
             rownames(df) <- names(new_data$combined_locus_data)
             df <- cbind(index = new_data$meta$index, df, new_data$meta[colnames(new_data$meta) != "index"])
-            df <- df[,colnames(df) != "individ"]
+            df <- df[,colnames(df) != "individ" & colnames(df) != "date_changed"]
             df
         })
 
@@ -667,46 +673,6 @@ server <- function(input, output, session) {
         )
     })
 
-    shiny::observeEvent(input$export_nrm, {
-        ids <- data$meta$index[startsWith(data$meta$individ, "NRM")]
-        df <- cbind(data$meta[ids,], data$multilocus[ids,])
-        write.csv(
-            x = df,
-            file = paste0("~/Downloads/data_export_all_nrm_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
-            row.names = FALSE, quote = FALSE
-        )
-    })
-
-    shiny::observeEvent(input$export_one_nrm, {
-        nrm_ids <- unique(data$meta$individ[startsWith(data$meta$individ, "NRM")])
-        ids <- unlist(lapply(nrm_ids, function(id) {
-            pos_ids <- data$meta$index[data$meta$individ == id]
-            if (length(pos_ids) == 1) {
-                return(pos_ids)
-            } else {
-                return(names(sort(apply(data$multilocus[pos_ids,], 1, function(x) { sum(is.na(x)) }))[1]))
-            }
-        }))
-        df <- cbind(data$meta[ids,], data$multilocus[ids,])
-        write.csv(
-            x = df,
-            file = paste0("~/Downloads/data_export_one_nrm_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
-            row.names = FALSE, quote = FALSE
-        )
-    })
-
-    shiny::observeEvent(input$export_new, {
-        df <- cbind(new_data$meta, new_data$multilocus)
-        for (ind in new_data$meta$index) {
-            df[ind, "individ"] <- data$meta[ind, "individ"]
-        }
-        write.csv(
-            x = df,
-            file = paste0("~/Downloads/data_export_new_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), "_", input$data_file$name),
-            row.names = FALSE, quote = FALSE
-        )
-    })
-
     shiny::observeEvent(input$new_individ_names_file, {
         shiny::req(input$new_individ_names_file)
 
@@ -784,6 +750,57 @@ server <- function(input, output, session) {
         update_choice_show_tables()
         update_main_table()
         output$change_names_return_message <- shiny::renderText("All individual with an individual-id found in the 'from' column have been changed to the corresponding 'to' column.")
+    })
+
+    shiny::observeEvent({input$export_new_from_date
+                         input$main_panel
+                         1}, {
+        output$export_new <- shiny::downloadHandler(
+            filename = function() {
+                paste0("DataExport_New_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")
+            },
+            content = function(file) {
+                ids <- data$meta$index[data$meta$date_changed > input$export_new_from_date]
+                ids <- ids[!is.na(ids)]
+                df <- cbind(data$meta[ids,], data$multilocus[ids,])
+                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+            }
+        )
+    })
+
+    shiny::observeEvent(input$main_panel, {
+        output$export_nrm <- shiny::downloadHandler(
+            filename = function() {
+                paste0("DataExport_AllNRM_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")
+            },
+            content = function(file) {
+                ids <- data$meta$index[startsWith(data$meta$individ, "NRM")]
+                df <- cbind(data$meta[ids,], data$multilocus[ids,])
+
+                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+            },
+            contentType = "test/csv"
+        )
+
+        output$export_one_nrm <- shiny::downloadHandler(
+            filename = function() {
+                paste0("DataExport_OneNRM_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")
+            },
+            content = function(file) {
+                nrm_ids <- unique(data$meta$individ[startsWith(data$meta$individ, "NRM")])
+                ids <- unlist(lapply(nrm_ids, function(id) {
+                    pos_ids <- data$meta$index[data$meta$individ == id]
+                    if (length(pos_ids) == 1) {
+                        return(pos_ids)
+                    } else {
+                        return(names(sort(apply(data$multilocus[pos_ids,], 1, function(x) { sum(is.na(x)) }))[1]))
+                    }
+                }))
+                df <- cbind(data$meta[ids,], data$multilocus[ids,])
+
+                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+            }
+        )
     })
 }
 
