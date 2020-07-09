@@ -13,10 +13,10 @@ Imports:
   DT,
   leaflet,
   lubridate,
+  magrittr,
+  readODS,
+  readxl,
+  RSQLite,
   shiny,
   sp,
   stringr
-Suggests:
-  readODS,
-  readxl,
-  RSQLite

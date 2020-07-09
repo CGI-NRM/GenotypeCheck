@@ -8,21 +8,21 @@ locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "
 names(locus_columns) <- locus_column_names
 
 data <- load_data(load_raw_data(file_path = "~/code/r/GenotypeCheck/data/bear_data_part1.csv"), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
-                  meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed"))
+                  meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed", confirmed_dead = "confirmed_dead"))
 
 # Option to test one new data point or load a file with multiple
-# nda <- "one"
-nda <- "mul"
+nda <- "one"
+# nda <- "mul"
 
 if (identical(nda, "one")) {
     locus_data <- c("110", "112", "143", "145", "123", "127", "164", "170", "150", "150", "230", "248", "184", "186", "128", "132")
     names(locus_data) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2", "MU23 - 1", "MU23 - 2",
                            "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1", "G10L - 2", "MU50 - 1", "MU50 - 2")
 
-    new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane"))
+    new_data <- create_new_data(index = "SEP123", multilocus = locus_data, meta = c(date = "2020-06-29", north = "7096503", east = "644381", gender = "Hane", confirmed_dead = "No"))
 } else if (identical(nda, "mul")) {
     new_data <- create_new_data_batch(load_raw_data(file_path = "~/code/r/GenotypeCheck/data/bear_data_part2.csv"), index_column = "index", locus_columns = locus_columns,
-        meta_columns = c(date = "date", north = "north", east = "east", gender = "gender"))
+        meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", confirmed_dead = "confirmed_dead"))
 }
 
 sanity_message <- sanity_check_new_data(new_data = new_data, data = data)

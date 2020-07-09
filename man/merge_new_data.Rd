@@ -18,7 +18,6 @@ merge_new_data(new_data, data, new_data_id, date_of_change = Sys.time())
 \value{
 A list with $data that contains the new data and $success that is either TRUE or FALSE depending on if the function succeeded.
 The test is rudimentary and weird/broken or corrupt data may be generated even if this value is TRUE.
-importFrom dplyr \%>\%
 }
 \description{
 Merge New Data Into The Dataset

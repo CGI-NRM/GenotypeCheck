@@ -29,7 +29,6 @@ north = "north", east = "east", gender = "gender"). The vector's names are requi
 }
 \value{
 A data object that is used in the rest of this package.
-importFrom dplyr \%>\%
 }
 \description{
 Load Original Dataset

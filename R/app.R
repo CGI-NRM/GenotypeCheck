@@ -1,10 +1,10 @@
-library(dplyr)
+library(magrittr)
 
 # This assumes standard names
 # If these are set the shiny app will not allow the user to choose a dataset to load.
 
 database_path <- "/home/elias-lundell/Downloads/"
-database_file <- "bear_data_part1.csv"
+database_file <- "bears.db"
 # database_path <- ""
 # database_file <- ""
 database_sheet <- 1
@@ -88,6 +88,8 @@ ui <- shiny::fluidPage(
                                                 shiny::dateInput(inputId = "load_new_date", label = "Date: "),
                                                 shiny::textInput(inputId = "load_new_gender", label = "Gender: "),
                                                 shiny::textOutput(outputId = "current_gender_indicators_used"),
+                                                shiny::tags$br(),
+                                                shiny::selectInput(inputId = "load_new_confirmed_dead", label = "Confirmed Dead: ", choices = c("Yes", "No"), selected = "No"),
                                                 shiny::tags$hr(),
                                                 shiny::actionButton(inputId = "compile_single_new_data", label = "Compile New Data")
                                             ),
@@ -234,17 +236,19 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$main_panel, {
         if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
 
-            locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
-                            "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
+            locus_columns <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
+                            "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
 
             names(locus_columns) <- locus_column_names
 
-            data <<- load_data(load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
-                               meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed"))
+            data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
+                meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed", confirmed_dead = "confirmed_dead"))
 
             update_main_table()
 
-            output$load_data_button_holder <- shiny::renderUI({})
+            output$load_data_button_holder <- shiny::renderUI({
+                shiny::h4("Data Loaded By Preset File")
+            })
             output$load_data_hint <- shiny::renderText("")
             output$current_gender_indicators_used <- shiny::renderText(paste0("The current genders used are: ", paste(data$meta$gender[!duplicated(data$meta$gender) & !is.na(data$meta$gender)], collapse = ", ")))
         } else {
@@ -302,7 +306,8 @@ server <- function(input, output, session) {
                 shiny::selectInput(inputId = "load_new_data_choice_date_col", label = "Date Column: ", choices = headers, selected = "date", multiple = FALSE),
                 shiny::selectInput(inputId = "load_new_data_choice_gender_col", label = "Gender Column: ", choices = headers, selected = "gender", multiple = FALSE),
                 shiny::selectInput(inputId = "load_new_data_choice_north_col", label = "North Column: ", choices = headers, selected = "north", multiple = FALSE),
-                shiny::selectInput(inputId = "load_new_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE)
+                shiny::selectInput(inputId = "load_new_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE),
+                shiny::selectInput(inputId = "load_new_data_choice_confirmed_dead_col", label = "Confirmed Dead Column: ", choices = c(headers, "NO COLUMN IN DATA" = NA), selected = "confirmed_dead", multiple = FALSE)
             )
         })
 
@@ -357,7 +362,8 @@ server <- function(input, output, session) {
                 shiny::selectInput(inputId = "load_data_choice_north_col", label = "North Column: ", choices = headers, selected = "north", multiple = FALSE),
                 shiny::selectInput(inputId = "load_data_choice_east_col", label = "East Column: ", choices = headers, selected = "east", multiple = FALSE),
                 shiny::selectInput(inputId = "load_data_choice_individ_col", label = "Individ Column: ", choices = headers, selected = "individ", multiple = FALSE),
-                shiny::selectInput(inputId = "load_data_choice_date_changed_col", label = "Date Changed Column: ", choices = headers, selected = "date_changed", multiple = FALSE)
+                shiny::selectInput(inputId = "load_data_choice_date_changed_col", label = "Date Changed Column: ", choices = headers, selected = "date_changed", multiple = FALSE),
+                shiny::selectInput(inputId = "load_data_choice_confirmed_dead_col", label = "Confirmed Dead Column: ", choices = c(headers, "NOT IN DATA" = NA), selected = "confirmed_dead", multiple = FALSE)
             )
         })
 
@@ -388,7 +394,7 @@ server <- function(input, output, session) {
     })
 
     load_file_headers <- function(file_path, sheet) {
-        colnames(load_raw_data(file_path = file_path, sheet = sheet))
+        colnames(GenotypeCheck::load_raw_data(file_path = file_path, sheet = sheet))
         if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
             raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, sheet = sheet)
         } else if (endsWith(file_path, ".ods")) {
@@ -408,9 +414,10 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        data <<- load_data(load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col,
-                           meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, east = input$load_data_choice_east_col,
-                           gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col))
+        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, 
+            locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, 
+            east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col, 
+            confirmed_dead = input$load_data_choice_confirmed_dead_col))
 
         update_main_table()
 
@@ -436,9 +443,9 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- create_new_data_batch(load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet), index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns,
-            meta_columns = c(date = input$load_new_data_choice_date_col,
-            north = input$load_new_data_choice_north_col, east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col))
+        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet), 
+            index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col, 
+            east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col, confirmed_dead = input$load_new_data_choice_confirmed_dead_col))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             df <- data.frame(multilocus = new_data$combined_locus_data)
@@ -450,7 +457,7 @@ server <- function(input, output, session) {
 
         output$load_new_data_button_holder <- shiny::renderUI({})
         output$load_data_before_match <- shiny::renderText("")
-        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " :|:  "))
+        output$sanity_message <- shiny::renderText(paste(GenotypeCheck::sanity_check_new_data(new_data = new_data, data = data), collapse = " :|: "))
         output$sanity_check <- shiny::renderText("Sanity Check")
         output$distances_done_message <- shiny::renderText("")
     })
@@ -462,8 +469,8 @@ server <- function(input, output, session) {
 
         names(locus_data) <- locus_column_names
 
-        new_data <<- create_new_data(input$load_new_index, multilocus = locus_data,
-            meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender))
+        new_data <<- GenotypeCheck::create_new_data(input$load_new_index, multilocus = locus_data,
+            meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender, confirmed_dead = input$load_new_confirmed_dead))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             df <- data.frame(multilocus = new_data$combined_locus_data)
@@ -474,23 +481,23 @@ server <- function(input, output, session) {
         })
 
         output$load_data_before_match <- shiny::renderText("")
-        output$sanity_message <- shiny::renderText(paste(sanity_check_new_data(new_data, data), collapse = " : "))
+        output$sanity_message <- shiny::renderText(paste(GenotypeCheck::sanity_check_new_data(new_data, data), collapse = " : "))
         output$sanity_check <- shiny::renderText("Sanity Check")
         output$distances_done_message <- shiny::renderText("")
     })
 
     shiny::observeEvent(input$generate_distances, {
-        distance_function <- dist_euclidian
+        distance_function <- GenotypeCheck::dist_euclidian
         if (identical(input$distance_function, "euc")) {
-            distance_function <- dist_euclidian
+            distance_function <- GenotypeCheck::dist_euclidian
         } else if (identical(input$distance_function, "man")) {
-            distance_function <- dist_manhattan
+            distance_function <- GenotypeCheck::dist_manhattan
         } else if (identical(input$distance_function, "max")) {
-            distance_function <- dist_maximum
+            distance_function <- GenotypeCheck::dist_maximum
         } else if (identical(input$distance_function, "num")) {
-            distance_function <- dist_num_mismatches
+            distance_function <- GenotypeCheck::dist_num_mismatches
         }
-        new_data$distances <<- calculate_new_data_distances(new_data, data, dist_euclidian)
+        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
 
@@ -500,7 +507,7 @@ server <- function(input, output, session) {
         shiny::req(new_data$distances)
 
         output$threshold_plot <- shiny::renderPlot({
-            generate_threshold_plot(new_data, data)
+            GenotypeCheck::generate_threshold_plot(new_data, data)
         })
     })
 
@@ -517,12 +524,12 @@ server <- function(input, output, session) {
 
         output$you_need_to_calculate_distances <- shiny::renderText("")
 
-        possible_matches <<- match_new_data(new_data, input$match_threshold)
+        possible_matches <<- GenotypeCheck::match_new_data(new_data, input$match_threshold)
 
         lapply(new_data$meta$index, function(ind) {
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
             })
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
@@ -554,7 +561,7 @@ server <- function(input, output, session) {
 
         output$merge_info_index <- shiny::renderText(paste0("Showing Details for: ", ind))
         output$merge_info_data_table <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
-            generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+            GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
         })
 
         output$merge_info_map <- leaflet::renderLeaflet({
@@ -584,13 +591,13 @@ server <- function(input, output, session) {
             choices <- c(unique(data$meta[possible_matches[[ind]]$ids, "individ"]))
             choices <- choices[!is.na(choices)]
 
-            choices <- c(choices, get_next_nrm_id(new_data, data))
+            choices <- c(choices, get_next_nrm_id(new_data = new_data, data = data))
             shiny::selectInput(inputId = "merge_new_individ_id_select", label = "New Individ-Id", choices = choices)
         })
     })
 
-    get_next_nrm_id <- function(nd, d) {
-        combined_data <- rbind(d$meta, nd$meta)
+    get_next_nrm_id <- function(new_data, data) {
+        combined_data <- rbind(data$meta, new_data$meta)
         nrm_ids <- combined_data$individ[startsWith(combined_data$individ, "NRM_")]
         if (sum(!is.na(nrm_ids)) == 0) {
             max_nrm_num_id <- 0
@@ -603,7 +610,7 @@ server <- function(input, output, session) {
     update_choice_show_tables <- function() {
         lapply(new_data$meta$index, function(ind) {
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df <- GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
                 df
             })
         })
@@ -625,7 +632,7 @@ server <- function(input, output, session) {
             individs <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
             new_individ <- individs[!is.na(individs)][1]
 
-            merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
+            merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
         })
 
         data <<- merged_data
@@ -650,7 +657,7 @@ server <- function(input, output, session) {
             new_individ <- data$meta[indexes, "individ"]
             new_individ <- new_individ[!is.na(new_individ)][1]
 
-            merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
+            merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = new_individ, date_of_change = date_of_change)$data
         })
 
         data <<- merged_data
@@ -672,7 +679,7 @@ server <- function(input, output, session) {
 
         lapply(new_data$meta$index, function(ind) {
             if (sum(!is.na(merged_data$meta[possible_matches[[ind]]$ids, "individ"])) == 0) {
-                merged_data <<- merge_new_data(new_data = extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data), 
+                merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data), 
                     date_of_change = date_of_change)$data
             }
         })
@@ -705,7 +712,7 @@ server <- function(input, output, session) {
 
         ind <- input$show_details_for_new_data
 
-        merged_data <<- merge_new_data(extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id_select)
+        merged_data <<- GenotypeCheck::merge_new_data(GenotypeCheck::extract_one_index_from_batch(new_data, input$show_details_for_new_data), data, input$merge_new_individ_id_select)
         data <<- merged_data$data
 
         if (any(merged_data$success)) {
@@ -811,7 +818,7 @@ server <- function(input, output, session) {
                 ids <- data$meta$index[input$export_new_from_date <= data$meta$date_changed & data$meta$date_changed <= input$export_new_to_date]
                 ids <- ids[!is.na(ids)]
                 df <- cbind(data$meta[ids,], data$multilocus[ids,])
-                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+                write.table(x = df, file = file, row.names = FALSE, quote = FALSE, sep = ",")
             }
         )
     })
@@ -838,7 +845,7 @@ server <- function(input, output, session) {
                 ids <- data$meta$index[startsWith(data$meta$individ, "NRM")]
                 df <- cbind(data$meta[ids,], data$multilocus[ids,])
 
-                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+                write.table(x = df, file = file, row.names = FALSE, quote = FALSE, sep = ",")
             },
             contentType = "test/csv"
         )
@@ -859,7 +866,7 @@ server <- function(input, output, session) {
                 }))
                 df <- cbind(data$meta[ids,], data$multilocus[ids,])
 
-                write.csv(x = df, file = file, row.names = FALSE, quote = FALSE)
+                write.table(x = df, file = file, row.names = FALSE, quote = FALSE, sep = ",")
             }
         )
     })
@@ -875,16 +882,26 @@ server <- function(input, output, session) {
         system(sprintf("cp %s %s", file_path_from, paste0(file_path_to, "backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"))))
 
         if (endsWith(database_file, ".db")) {
-            # TODO: HANDLE SQLITE HERE
+            db <- RSQLite::dbConnect(RSQLite::SQLite(), paste0(database_path, database_file))
+
+            combined_data <- cbind(data$meta, data$multilocus)
+
+            query <- sprintf(
+                "INSERT INTO Bears (%s) VALUES ('%s')",
+                paste(names(combined_data), collapse = ", "),
+                paste(unlist(apply(combined_data, 1, function(x) { paste(x, collapse = "', '") })), collapse="'), ('")
+            )
+
+            RSQLite::dbGetQuery(db, query)
+            RSQLite::dbDisconnect(db)
         } else {
-            write.csv(
+            write.table(
                 x = cbind(data$meta, data$multilocus),
                 file = paste0(database_path, database_file),
-                row.names = FALSE, quote = FALSE
+                row.names = FALSE, quote = FALSE, sep = ","
             )
         }
     })
-
 
     delete_unwanted_backups <- function() {
     }

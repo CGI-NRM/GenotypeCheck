@@ -4,12 +4,18 @@
 \alias{load_data_sqlite}
 \title{(load_data helper function) Loads a SQLite database from a file}
 \usage{
-load_data_sqlite(file_path, table = "Bears")
+load_data_sqlite(
+  file_path,
+  table = "Bears",
+  na_strings = c("NA", "-99", "0", "000")
+)
 }
 \arguments{
 \item{file_path}{The path to the *.db file to be loaded.}
 
 \item{table}{The name of the table in the database that contains the desired data. Default is "Bears".}
+
+\item{na_strings}{A vector of strings that will be changed to NA}
 }
 \value{
 A table with all data from the table

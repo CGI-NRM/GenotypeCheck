@@ -1,5 +1,3 @@
-library(dplyr)
-
 #' Helper Function to load different forms of data
 #'
 #' @param file_path The path to a file, either a .csv, .ods, excel file or SQLite database.
@@ -7,7 +5,7 @@ library(dplyr)
 #' @param na_strings A vector of strings that are to be interpreted as NA values. Default is "NA", "-99", "0", and "000".
 #'
 #' @return A table with all columns of the file or database
-#' importFrom utils read.table
+#' @importFrom utils read.table
 #' @export
 #'
 #' @examples
@@ -16,23 +14,11 @@ library(dplyr)
 #' }
 load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0", "000")) {
     if (endsWith(file_path, ".xls") | endsWith(file_path, ".xlsx")) {
-        if (requireNamespace("readxl", quietly = TRUE)) {
-            stop("Package \"readxl\" is needed to read excel files.")
-        } else {
-            raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
-        }
+        raw_data <- readxl::read_excel(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".ods")) {
-        if (requireNamespace("readODS", quietly = TRUE)) {
-            stop("Package \"readODS\" is needed to read .ods files.")
-        } else {
-            raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
-        }
+        raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".db")) {
-        if (requireNamespace("RSQLite", quietly = TRUE)) {
-            stop("Package \"RSQLite\" is needed to read sqlite3 databases (\'.db\' files).")
-        } else {
-            raw_data <- load_data_sqlite(file_path)
-        }
+        raw_data <- GenotypeCheck::load_data_sqlite(file_path)
     } else {
         raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
@@ -53,7 +39,6 @@ load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0",
 #' north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.
 #'
 #' @return A data object that is used in the rest of this package.
-#' importFrom dplyr %>%
 #' @export
 #'
 #' @examples
@@ -84,6 +69,12 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
         colnames(meta_data) <- c("index", names(meta_columns), "individ")
     }
 
+    if (is.na(meta_columns["confirmed_dead"])) {
+        meta_data <- cbind(meta_data, confirmed_dead = "No")
+    }
+
+    meta_data$confirmed_dead[is.na(meta_data$confirmed_dead)] <- "No"
+
     rownames(meta_data) <- meta_data$index
 
     locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
@@ -104,6 +95,7 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
 #'
 #' @param file_path The path to the *.db file to be loaded.
 #' @param table The name of the table in the database that contains the desired data. Default is "Bears".
+#' @param na_strings A vector of strings that will be changed to NA
 #'
 #' @return A table with all data from the table
 #' @export
@@ -112,14 +104,23 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
 #' \dontrun{
 #' raw_data <- load_data_sqlite(file_path = "path/to/file.db", table = "Bears")
 #' }
-load_data_sqlite <- function(file_path, table = "Bears") {
+load_data_sqlite <- function(file_path, table = "Bears", na_strings = c("NA", "-99", "0", "000")) {
     db <- RSQLite::dbConnect(RSQLite::SQLite(), file_path)
     query <- sprintf("SELECT * FROM %s", table)
 
     raw_data <- RSQLite::dbGetQuery(db, query)
     RSQLite::dbDisconnect(db)
 
-    raw_data
+    raw_data <- as.data.frame(raw_data)
+    raw_data <- apply(raw_data, 1:2, function(x) {
+        if (x %in% na_strings) {
+            return(NA)
+        } else {
+            return(x)
+        }
+    })
+
+    as.data.frame(raw_data)
 }
 
 #' Create a single new data point from given data
@@ -155,15 +156,15 @@ create_new_data <- function(index, multilocus, meta, na_strings = c("NA", "-99",
     combined_locus_data <- combine_multilocus(locus_data[1, ])
     names(combined_locus_data) <- index
 
-    meta_data <- data.frame(index, as.list(meta), NA)
-    colnames(meta_data) <- c("index", names(meta), "individ")
+    meta_data <- data.frame(index, as.list(meta), NA, NA)
+    colnames(meta_data) <- c("index", names(meta), "individ", "date_changed")
     rownames(meta_data) <- c(index)
 
     meta_data$north <- as.numeric(meta_data$north)
     meta_data$east <- as.numeric(meta_data$east)
 
     ndata <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(multilocus), meta_column_names = c("index", names(meta), "individ"),
-        distances = list(distances = c(NULL), names_type = c(NULL)))
+        distances = NULL)
     ndata
 }
 
@@ -358,6 +359,7 @@ calculate_new_data_distances <- function(new_data, data, distance_function) {
 #' @param locus A vector with the locuses.
 #'
 #' @return A string with all of the locuses combined.
+#' @importFrom magrittr %>%
 #' @export
 #'
 #' @examples
@@ -367,6 +369,7 @@ calculate_new_data_distances <- function(new_data, data, distance_function) {
 #' }
 combine_multilocus <- function(locus) {
     locus[is.na(locus)] <- 0
+    locus <- as.numeric(locus)
     locus %>% formatC(width = 3, flag = "0", format = "d") %>%
         paste0(collapse = " ")
 }
@@ -423,7 +426,7 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 #' @param data A data object.
 #'
 #' @return Renders a plot showing how different thresholds would affect the resulting merge.
-#' importFrom graphics legend lines
+#' @importFrom graphics legend lines
 #' @export
 #'
 #' @examples
@@ -506,7 +509,6 @@ extract_one_index_from_batch <- function(batch, index) {
 #'
 #' @return A list with $data that contains the new data and $success that is either TRUE or FALSE depending on if the function succeeded.
 #' The test is rudimentary and weird/broken or corrupt data may be generated even if this value is TRUE.
-#' importFrom dplyr %>%
 #' @export
 #'
 #' @examples
@@ -525,12 +527,21 @@ merge_new_data <- function(new_data, data, new_data_id, date_of_change = Sys.tim
         return(list(data = data, success = FALSE))
     }
 
+    ids <- data$meta[data$meta$individ == new_data_id, "index"]
+    if ("Yes" %in% data$meta[ids, "confirmed_dead"]) {
+        new_data$meta$confirmed_dead <- "Yes"
+    }
+
+    if ("Yes" %in% new_data$meta$confirmed_dead) {
+        data$meta[ids, "confirmed_dead"] <- "Yes"
+    }
+
     new_data$meta$date_changed <- c(format(lubridate::ymd_hms(date_of_change)))
 
     df_multi <- data.frame(as.list(new_data$multilocus))
     rownames(df_multi) <- new_data$meta$index
     colnames(df_multi) <- colnames(data$multilocus)
-    data$multilocus <- data$multilocus %>% rbind(df_multi)
+    data$multilocus <- rbind(data$multilocus, df_multi)
     new_data$meta$individ <- new_data_id
     data$meta <- rbind(data$meta, new_data$meta)
 

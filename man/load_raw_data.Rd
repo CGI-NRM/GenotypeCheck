@@ -15,7 +15,6 @@ load_raw_data(file_path, sheet = 1, na_strings = c("NA", "-99", "0", "000"))
 }
 \value{
 A table with all columns of the file or database
-importFrom utils read.table
 }
 \description{
 Helper Function to load different forms of data

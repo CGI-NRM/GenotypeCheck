@@ -13,7 +13,6 @@ generate_threshold_plot(new_data, data)
 }
 \value{
 Renders a plot showing how different thresholds would affect the resulting merge.
-importFrom graphics legend lines
 }
 \description{
 Generate threshold plot
