@@ -4,11 +4,10 @@ In this repo we host some tools that we use to evaluate genotype data that we ge
 ## Steps to deploy app:
 1. `git clone https://github.com/CGI-NRM/GenotypeCheck/tree/develop`
 2. `cd GenotypeCheck`
-3. `rm R/workflow.R`
-4. `sudo -i R`
-5. `setwd("path/to/dir/GenotypeCheck/")`
-6. `devtools::install()`
-7. `cp R/app.R srv/shiny-server/app.r`
+3. `sudo -i R`
+4. `setwd("path/to/dir/GenotypeCheck/")`
+5. `devtools::install()`
+6. `cp R/app.R srv/shiny-server/app.r`
 
 edit `database_path` and `database_file` in app.R to point towards the file with the dataset. It can load a excel or ods file but will write a csv file and will therefor load the original data repeatedly if the file path is not replaced. A sqlite3 database is prefered.
 
