@@ -4,7 +4,7 @@ library(magrittr)
 # If these are set the shiny app will not allow the user to choose a dataset to load.
 # This foledr is also where the backups will be saved and cleaned up
 
-database_path <- "/home/elias-lundell/Downloads/"
+database_path <- "path/to/data/folder/"
 database_file <- "bears.db"
 # database_path <- ""
 # database_file <- ""
