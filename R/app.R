@@ -2,6 +2,7 @@ library(magrittr)
 
 # This assumes standard names
 # If these are set the shiny app will not allow the user to choose a dataset to load.
+# This foledr is also where the backups will be saved and cleaned up
 
 database_path <- "/home/elias-lundell/Downloads/"
 database_file <- "bears.db"
@@ -9,17 +10,22 @@ database_file <- "bears.db"
 # database_file <- ""
 database_sheet <- 1
 
+default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
+                           "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
+
+locus_column_names <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
+                        "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
+
 SWEREF99 <- sp::CRS("+init=epsg:3006")
 WGS84 <- sp::CRS("+init=epsg:4326")
 
-locus_column_names <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
-                        "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
 
 ui <- shiny::fluidPage(
 
     shiny::titlePanel("Match Genotype"),
 
     shiny::actionButton(inputId = "save", label = "Save Changes"),
+    shiny::textOutput(outputId = "save_return_message"),
     shiny::tags$hr(),
 
     shiny::tabsetPanel(id = "main_panel",
@@ -171,7 +177,7 @@ ui <- shiny::fluidPage(
                                             ),
                                             shiny::actionButton(inputId = "merge_specific", label = "Merge Sample Into Dataset"),
                                             shiny::tags$br(),
-                                            shiny::textOutput(outputId = "merge_return_message"),
+                                            shiny::textOutput(outputId = "merge_return_message")
                                         ),
                                         mainPanel = shiny::mainPanel(
                                             shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
@@ -211,7 +217,6 @@ ui <- shiny::fluidPage(
             shiny::downloadButton(outputId = "export_one_nrm", label = "Export One Sample From Each New (NRM) Individ"),
             shiny::tags$hr(),
             shiny::uiOutput(outputId = "dates_for_export"),
-            # shiny::dateInput(inputId = "export_new_from_date", label = "Export All New Datapoints Since: ", max = Sys.time()),
             shiny::downloadButton(outputId = "export_new", label = "Export Data Added Since Date")
         )
     )
@@ -236,6 +241,12 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$main_panel, {
+
+        output$merge_zero_return_message <- shiny::renderText("")
+        output$merge_one_return_message <- shiny::renderText("")
+        output$assign_new_ids_return_message <- shiny::renderText("")
+        output$save_return_message <- shiny::renderText("")
+
         if (has_loaded_data) {
             return()
         }
@@ -243,13 +254,9 @@ server <- function(input, output, session) {
         has_loaded_data <<- TRUE
 
         if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
+            names(default_locus_columns) <- locus_column_names
 
-            locus_columns <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
-                            "MU23 - 1", "MU23 - 2", "MU50 - 1", "MU50 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2")
-
-            names(locus_columns) <- locus_column_names
-
-            data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = locus_columns, individ_column = "individ",
+            data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = default_locus_columns, individ_column = "individ",
                 meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed", confirmed_dead = "confirmed_dead"))
 
             update_main_table()
@@ -649,8 +656,9 @@ server <- function(input, output, session) {
         update_main_table()
         update_amount_texts()
 
-        Sys.sleep(0.6)
         output$merge_one_return_message <- shiny::renderText("Done")
+        output$merge_zero_return_message <- shiny::renderText("")
+        output$assign_new_ids_return_message <- shiny::renderText("")
     })
 
     shiny::observeEvent(input$merge_zero_distance_data, {
@@ -674,8 +682,9 @@ server <- function(input, output, session) {
         update_main_table()
         update_amount_texts()
 
-        Sys.sleep(0.6)
         output$merge_zero_return_message <- shiny::renderText("Done")
+        output$merge_one_return_message <- shiny::renderText("")
+        output$assign_new_ids_return_message <- shiny::renderText("")
     })
 
     shiny::observeEvent(input$assign_new_ids, {
@@ -698,8 +707,9 @@ server <- function(input, output, session) {
         update_amount_texts()
         update_main_table()
 
-        Sys.sleep(0.6)
         output$assign_new_ids_return_message <- shiny::renderText("Done")
+        output$merge_zero_return_message <- shiny::renderText("")
+        output$merge_one_return_message <- shiny::renderText("")
     })
 
     shiny::observeEvent(input$merge_new_individ_id_select, {
@@ -728,6 +738,10 @@ server <- function(input, output, session) {
         } else {
             output$merge_return_message <- shiny::renderText("There was an error trying to merge the new data.")
         }
+
+        output$merge_zero_return_message <- shiny::renderText("")
+        output$merge_one_return_message <- shiny::renderText("")
+        output$assign_new_ids_return_message <- shiny::renderText("")
 
         update_choice_show_tables()
         update_main_table()
@@ -839,8 +853,8 @@ server <- function(input, output, session) {
                 return(shiny::h5("No Data With Date Date Was Found"))
             } else {
                 return(shiny::tagList(
-                    shiny::selectInput(inputId = "export_new_from_date", label = "Export Start: ", choices = times),
-                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times) 
+                    shiny::selectInput(inputId = "export_new_from_date", label = "Export Start: ", choices = times, selected = 1),
+                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times, selected = 1) 
                 ))     
             }
         })
@@ -882,36 +896,82 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$save, {
         if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
             file_path_from <- paste0(database_path, database_file)
-            file_path_to <- paste0(database_path, database_file)
+            file_path_to <- paste0(database_path)
         } else {
             file_path_from <- input$data_file$datapath
             file_path_to <- "~/Downloads/"
         }
-        system(sprintf("cp %s %s", file_path_from, paste0(file_path_to, "backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"))))
 
         if (endsWith(database_file, ".db")) {
+            system(sprintf("cp %s %s", file_path_from, paste0(file_path_to, "backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".db")))
             db <- RSQLite::dbConnect(RSQLite::SQLite(), paste0(database_path, database_file))
 
             combined_data <- cbind(data$meta, data$multilocus)
 
             query <- sprintf(
-                "INSERT INTO Bears ('%s') VALUES ('%s')",
+                "INSERT OR REPLACE INTO Bears ('%s') VALUES ('%s')",
                 paste(names(combined_data), collapse = "', '"),
                 paste(unlist(apply(combined_data, 1, function(x) { paste(x, collapse = "', '") })), collapse="'), ('")
             )
 
-            RSQLite::dbGetQuery(db, query)
+            RSQLite::dbExecute(db, query)
             RSQLite::dbDisconnect(db)
         } else {
+            system(sprintf("cp %s %s", file_path_from, paste0(file_path_to, "backup_", stringr::str_replace_all(format(Sys.time(), format = "", tz = ""), "[: -]", "_"), ".csv")))
+
             write.table(
                 x = cbind(data$meta, data$multilocus),
                 file = paste0(database_path, database_file),
                 row.names = FALSE, quote = FALSE, sep = ","
             )
         }
+
+        if (identical(file_path_to, "~/Downloads/")) {
+            ouput$save_return_message <- shiny::renderText("Saved To Downloads Folder")
+        } else {
+            delete_unwanted_backups()
+            output$save_return_message <- shiny::renderText("Saved")
+        }
     })
 
     delete_unwanted_backups <- function() {
+        # Configure which files get deleted.
+        # The program will go through all files and fit the file into the oldest category it fits into.
+        # It will reduce that number and if that number is zero the backup will be deleted.
+        # Example: keep_files <- c("1" = "all", "2" = 1, "3" = 1, "4" = 1, "5" = 1, "6" = 1, "7" = 1, "14" = 1, "30" = 1)
+        # Will keep all files less than one day old, one file from each of the previous 6 days, one file from between one and two weeks ago and one file from between two weeks and one month ago.
+        keep_files <- c("0" = "all", "1" = "all", "2" = 1, "3" = 1, "4" = 1, "5" = 1, "6" = 1, "7" = 1, "14" = 1, "30" = 1)
+        keep_files <- keep_files[as.character(unique(sort(as.numeric(names(keep_files)))))]
+
+        current_date <- lubridate::ymd(Sys.Date())
+        files <- list.files(path = database_path, pattern = "backup_[0-9]{4}_[01][0-9]_[0-3][0-9]_[0-2][0-9]_[0-5][0-9]_[0-5][0-9]\\.((csv)|(db))")
+        files <- sort(files)
+        for (file in files) {
+            file_name <- strsplit(file, "\\.")[[1]][1]
+            file_parts <- strsplit(file_name, "_")[[1]]
+            file_date <- lubridate::ymd(paste0(file_parts[2], "-", file_parts[3], "-", file_parts[4]))
+            file_int <- lubridate::interval(file_date, current_date)
+            file_dur <- lubridate::as.duration(file_int)
+            days_old <- file_dur / lubridate::ddays(1)
+            print(days_old)
+            file_category <- NA
+            for (ind in 1:length(keep_files)) {
+                if (days_old > as.numeric(names(keep_files)[ind])) {
+                    file_category <- names(keep_files)[ind + 1]
+                }
+            }
+            if (is.na(file_category)) {
+                unlink(paste0(database_path, file))
+            } else {
+                if (keep_files[file_category] != "all") {
+                    keep_files[file_category] <- as.numeric(keep_files[file_category]) - 1
+
+                    if (as.numeric(keep_files[file_category]) <= -1) {
+                        unlink(paste0(database_path, file))
+                    }
+                }
+            }
+        }
     }
 }
 
