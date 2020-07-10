@@ -120,7 +120,7 @@ ui <- shiny::fluidPage(
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
                                             shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man",
-                                                "Maximun Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
+                                                "Maximum Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
                                             shiny::textOutput(outputId = "distances_done_message"),
                                             shiny::tags$hr(),
@@ -222,6 +222,8 @@ server <- function(input, output, session) {
 
     change_names_list <- NULL
 
+    has_loaded_data <- FALSE
+
     data <- NULL
     new_data <- NULL
     possible_matches <- NULL
@@ -234,6 +236,12 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$main_panel, {
+        if (has_loaded_data) {
+            return()
+        }
+
+        has_loaded_data <<- TRUE
+
         if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
 
             locus_columns <- c("G10L - 1", "G10L - 2", "MU05 - 1", "MU05 - 2", "MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2",
@@ -493,7 +501,7 @@ server <- function(input, output, session) {
         } else if (identical(input$distance_function, "man")) {
             distance_function <- GenotypeCheck::dist_manhattan
         } else if (identical(input$distance_function, "max")) {
-            distance_function <- GenotypeCheck::dist_maximum
+            distance_function <- GenotypeCheck:mdist_maximum
         } else if (identical(input$distance_function, "num")) {
             distance_function <- GenotypeCheck::dist_num_mismatches
         }
@@ -571,7 +579,7 @@ server <- function(input, output, session) {
             # ids <- data$meta$index
             ids <- ids[ids != ind]
 
-            coords <- list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"]))
+            coords <- as.data.frame(list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"])))
             p1 <- sp::SpatialPoints(coords = coords, proj4string = SWEREF99)
             p2 <- sp::coordinates(sp::spTransform(p1, WGS84))
 
@@ -887,8 +895,8 @@ server <- function(input, output, session) {
             combined_data <- cbind(data$meta, data$multilocus)
 
             query <- sprintf(
-                "INSERT INTO Bears (%s) VALUES ('%s')",
-                paste(names(combined_data), collapse = ", "),
+                "INSERT INTO Bears ('%s') VALUES ('%s')",
+                paste(names(combined_data), collapse = "', '"),
                 paste(unlist(apply(combined_data, 1, function(x) { paste(x, collapse = "', '") })), collapse="'), ('")
             )
 

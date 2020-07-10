@@ -75,6 +75,9 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
 
     meta_data$confirmed_dead[is.na(meta_data$confirmed_dead)] <- "No"
 
+    meta_data$north <- as.numeric(meta_data$north)
+    meta_data$east <- as.numeric(meta_data$east)
+
     rownames(meta_data) <- meta_data$index
 
     locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
