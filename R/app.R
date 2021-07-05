@@ -170,7 +170,7 @@ ui <- shiny::fluidPage(
                                             shiny::actionButton(inputId = "assign_new_ids", label = "Assign New NRM Ids To The New Samples Without Matches"),
                                             shiny::textOutput(outputId = "assign_new_ids_return_message"),
                                             shiny::tags$hr(),
-                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: "),
+                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: ", placeholder = "Index: SEPXXXXXXX"),
                                             shiny::tags$hr(),
                                             shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
                                                 shiny::uiOutput(outputId = "merge_new_individ_id")
