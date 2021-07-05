@@ -429,9 +429,9 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, 
-            locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, 
-            east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col, 
+        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col,
+            locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col,
+            east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col,
             confirmed_dead = input$load_data_choice_confirmed_dead_col))
 
         update_main_table()
@@ -458,8 +458,8 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet), 
-            index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col, 
+        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet),
+            index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col,
             east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col, confirmed_dead = input$load_new_data_choice_confirmed_dead_col))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
@@ -696,7 +696,7 @@ server <- function(input, output, session) {
 
         lapply(new_data$meta$index, function(ind) {
             if (sum(!is.na(merged_data$meta[possible_matches[[ind]]$ids, "individ"])) == 0) {
-                merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data), 
+                merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data),
                     date_of_change = date_of_change)$data
             }
         })
@@ -854,8 +854,8 @@ server <- function(input, output, session) {
             } else {
                 return(shiny::tagList(
                     shiny::selectInput(inputId = "export_new_from_date", label = "Export Start: ", choices = times, selected = 1),
-                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times, selected = 1) 
-                ))     
+                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times, selected = 1)
+                ))
             }
         })
 
