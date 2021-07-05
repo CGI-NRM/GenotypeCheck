@@ -216,7 +216,11 @@ ui <- shiny::fluidPage(
                 ),
                 shiny::tabPanel(
                     title = "Rename One Individual ID", value = "rename_one_individual_id",
-                    shiny::h3("Change One Erroneously Names")
+                    shiny::h3("Change One Erroneously Name"),
+                    shiny::textInput(inputId = "change_one_individual_id_sep_input", label = "Enter INDEX to change: ", placeholder = "SEPXXXXXXX")
+                    #' Show current sample to the side, show points on map
+                    #' Enter new individ-name
+                    #' Show new too on map
                 )
             ),
         ),
