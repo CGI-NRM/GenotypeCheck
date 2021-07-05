@@ -4,10 +4,10 @@ library(magrittr)
 # If these are set the shiny app will not allow the user to choose a dataset to load.
 # This foledr is also where the backups will be saved and cleaned up
 
-database_path <- "path/to/data/folder/"
-database_file <- "bears.db"
-# database_path <- ""
-# database_file <- ""
+#database_path <- "path/to/data/folder/"
+#database_file <- "bears.db"
+database_path <- ""
+database_file <- ""
 database_sheet <- 1
 
 default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
