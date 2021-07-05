@@ -544,7 +544,7 @@ server <- function(input, output, session) {
         lapply(new_data$meta$index, function(ind) {
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, FALSE)
             })
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
@@ -569,6 +569,13 @@ server <- function(input, output, session) {
     shiny::observeEvent(input$show_details_for_new_data, {
         shiny::req(input$show_details_for_new_data)
         if (!(input$show_details_for_new_data %in% new_data$meta$index)) {
+            output$merge_info_index <- shiny::renderUI({})
+            output$merge_info_data_table <- DT::renderDataTable({
+                data.frame()
+            })
+            output$merge_info_map <- leaflet::renderLeaflet({
+                leaflet::leaflet()
+            })
             return()
         }
 
@@ -576,7 +583,7 @@ server <- function(input, output, session) {
 
         output$merge_info_index <- shiny::renderText(paste0("Showing Details for: ", ind))
         output$merge_info_data_table <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
-            GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+            GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, TRUE)
         })
 
         output$merge_info_map <- leaflet::renderLeaflet({
@@ -592,8 +599,10 @@ server <- function(input, output, session) {
 
             dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
             individs <- c("CURRENT", data$meta[ids, "individ"])
-            labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", " Date: ", dates, "<br>", " Individual: ", individs)
-            labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs)
+            gender <- c(new_data$meta[ind, "gender"], data$meta[ids, "gender"])
+            confirmed_dead <- c(new_data$meta[ind, "confirmed_dead"], data$meta[ids, "confirmed_dead"])
+            labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", "Date: ", dates, "<br>", "Individual: ", individs, "<br>", "Gender: ", gender, "<br>", "Confirmed dead: ", confirmed_dead)
+            labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs, " Gender: ", gender, " Confirmed dead: ", confirmed_dead)
 
             leaflet::leaflet(p2) %>%
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
@@ -625,7 +634,7 @@ server <- function(input, output, session) {
     update_choice_show_tables <- function() {
         lapply(new_data$meta$index, function(ind) {
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind)
+                df <- GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, FALSE)
                 df
             })
         })
