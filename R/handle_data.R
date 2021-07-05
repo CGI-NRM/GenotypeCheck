@@ -418,11 +418,9 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
     columns_included <- c("index", "multilocus", "locus distance", "individual")
 
     if (include_extra_info) {
-        gender <- c(new_data$meta[ind, "gender"], data$meta[ids, "gender"])
-        confirmed_dead <- c(new_data$meta[ind, "confirmed_dead"], data$meta[ids, "confirmed_dead"])
-        #combined_meta <- rbind(data$meta, new_data$meta)
-        #gender <- combined_meta[c(ind, ids), "gender"]
-        #confirmed_dead <- combined_meta[c(ind, ids), "confirmed_dead"]
+        combined_meta <- rbind(data$meta, new_data$meta)
+        gender <- combined_meta[c(ind, ids), "gender"]
+        confirmed_dead <- combined_meta[c(ind, ids), "confirmed_dead"]
 
         columns_included <- c("index", "multilocus", "gender", "confirmed dead", "locus distance", "individual")
         df <- cbind(df, data.frame(multilocus = multi), gender, confirmed_dead, distance, indi)
