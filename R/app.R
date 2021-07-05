@@ -16,9 +16,9 @@ default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU
 locus_column_names <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
                         "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
 
-SWEREF99 <- sp::CRS("+init=epsg:3006")
-WGS84 <- sp::CRS("+init=epsg:4326")
-
+# EPSG codes
+SWEREF99 <- 3006
+WGS84 <- 4326
 
 ui <- shiny::fluidPage(
 
@@ -587,19 +587,19 @@ server <- function(input, output, session) {
             ids <- ids[ids != ind]
 
             coords <- as.data.frame(list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"])))
-            p1 <- sp::SpatialPoints(coords = coords, proj4string = SWEREF99)
-            p2 <- sp::coordinates(sp::spTransform(p1, WGS84))
+            p1 <- sf::st_as_sf(coords, coords = c("lng", "lat"), crs = SWEREF99)
+            p2 <- sf::st_transform(p1, WGS84)
 
             dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
             individs <- c("CURRENT", data$meta[ids, "individ"])
             labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", " Date: ", dates, "<br>", " Individual: ", individs)
             labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs)
 
-            leaflet::leaflet() %>%
+            leaflet::leaflet(p2) %>%
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
                                           options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
-                leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = individs, options = leaflet::popupOptions(closeButton = TRUE)) %>%
-                leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels_with_br)
+                leaflet::addPopups(popup = individs, options = leaflet::popupOptions((closeButton = TRUE))) %>%
+                leaflet::addMarkers(label = labels, popup = labels_with_br)
         })
 
         output$merge_new_individ_id <- shiny::renderUI({
@@ -976,4 +976,5 @@ server <- function(input, output, session) {
 }
 
 shiny::shinyApp(ui = ui, server = server)
+
 
