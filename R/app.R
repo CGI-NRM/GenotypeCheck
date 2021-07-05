@@ -195,20 +195,30 @@ ui <- shiny::fluidPage(
             )
         ),
         shiny::tabPanel(
-            title = "Replace NRM Names With BI Names", value = "replace_nrm_with_bi_tab",
-            shiny::h3("Replace Temporary Names"),
-            shiny::sidebarLayout(
-                sidebarPanel = shiny::sidebarPanel(width = 3,
-                    shiny::fileInput(inputId = "new_individ_names_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
-                    shiny::uiOutput(outputId = "new_individ_names_sheet"),
-                    shiny::uiOutput(outputId = "new_individ_names_choice"),
-                    shiny::uiOutput(outputId = "new_individ_names_button"),
-                    shiny::textOutput(outputId = "change_names_return_message")
+            title = "Replace and rename individual ID", value = "replace_and_rename_individual_id",
+            shiny::tabsetPanel(
+                id = "replace_rename_panel",
+                shiny::tabPanel(
+                    title = "Replace NRM Names With BI Names", value = "replace_nrm_with_bi_tab",
+                    shiny::h3("Replace Temporary Names"),
+                    shiny::sidebarLayout(
+                        sidebarPanel = shiny::sidebarPanel(width = 3,
+                            shiny::fileInput(inputId = "new_individ_names_file", "Choose Data File", multiple = FALSE, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv", ".xls", ".xlsx", ".ods")),
+                            shiny::uiOutput(outputId = "new_individ_names_sheet"),
+                            shiny::uiOutput(outputId = "new_individ_names_choice"),
+                            shiny::uiOutput(outputId = "new_individ_names_button"),
+                            shiny::textOutput(outputId = "change_names_return_message")
+                        ),
+                        mainPanel = shiny::mainPanel(
+                            DT::dataTableOutput(outputId = "new_names_match_table")
+                        )
+                    )
                 ),
-                mainPanel = shiny::mainPanel(
-                    DT::dataTableOutput(outputId = "new_names_match_table")
+                shiny::tabPanel(
+                    title = "Rename One Individual ID", value = "rename_one_individual_id",
+                    shiny::h3("Change One Erroneously Names")
                 )
-            )
+            ),
         ),
         shiny::tabPanel(
             title = "Export Data", value = "export_tab",
