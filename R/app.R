@@ -217,10 +217,23 @@ ui <- shiny::fluidPage(
                 shiny::tabPanel(
                     title = "Rename One Individual ID", value = "rename_one_individual_id",
                     shiny::h3("Change One Erroneously Name"),
-                    shiny::textInput(inputId = "change_one_individual_id_sep_input", label = "Enter INDEX to change: ", placeholder = "SEPXXXXXXX")
-                    #' Show current sample to the side, show points on map
-                    #' Enter new individ-name
-                    #' Show new too on map
+                    shiny::sidebarLayout(
+                        sidebarPanel = shiny::sidebarPanel(width = 3,
+                            shiny::textInput(inputId = "change_one_individual_id_sep_input", label = "Enter INDEX to change: ", placeholder = "SEPXXXXXXX"),
+                            shiny::conditionalPanel(condition = "input.change_one_individual_id_sep_input != ''",
+                                shiny::textInput(inputId = "new_individual_name_input", label = "Enter new individual name: ")
+                            ),
+                            shiny::conditionalPanel(condition = "input.new_individual_name_input != ''",
+                                shiny::actionButton(inputId = "perform_individual_name_change", label = "Update Name"),
+                                shiny::textOutput(outputId = "individual_name_change_return_message")
+                            )
+                        ),
+                        mainPanel = shiny::mainPanel(
+                            shiny::h4(shiny::textOutput(outputId = "new_name_info_index")),
+                            DT::dataTableOutput(outputId = "new_name_info_table"),
+                            leaflet::leafletOutput(outputId = "new_name_info_map")
+                        )
+                    )
                 )
             ),
         ),
@@ -587,9 +600,7 @@ server <- function(input, output, session) {
             output$merge_info_data_table <- DT::renderDataTable({
                 data.frame()
             })
-            output$merge_info_map <- leaflet::renderLeaflet({
-                leaflet::leaflet()
-            })
+            output$merge_info_map <- leaflet::renderLeaflet({})
             return()
         }
 
@@ -607,17 +618,17 @@ server <- function(input, output, session) {
             ids <- unique(c(ids, possible_matches[[ind]]$ids))
             ids <- ids[ids != ind]
 
-            merge_meta <- rbind(data$meta, new_data$meta)
+            combined_meta <- rbind(data$meta, new_data$meta)
 
-            coords <- as.data.frame(list(lng = merge_meta[c(ind, ids), "east"], lat = merge_meta[c(ind, ids), "north"]))
+            coords <- as.data.frame(list(lng = combined_meta[c(ind, ids), "east"], lat = combined_meta[c(ind, ids), "north"]))
             p1 <- sf::st_as_sf(coords, coords = c("lng", "lat"), crs = SWEREF99)
             p2 <- sf::st_transform(p1, WGS84)
 
-            dates <- merge_meta[c(ind, ids), "date"]
-            individs <- c("CURRENT", merge_meta[ids, "individ"])
+            dates <- combined_meta[c(ind, ids), "date"]
+            individs <- c("CURRENT", combined_meta[ids, "individ"])
             individs[is.na(individs)] <- "No assigned"
-            gender <- merge_meta[c(ind, ids), "gender"]
-            confirmed_dead <- merge_meta[c(ind, ids), "confirmed_dead"]
+            gender <- combined_meta[c(ind, ids), "gender"]
+            confirmed_dead <- combined_meta[c(ind, ids), "confirmed_dead"]
             labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", "Date: ", dates, "<br>", "Individual: ", individs, "<br>", "Gender: ", gender, "<br>", "Confirmed dead: ", confirmed_dead)
             labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs, " Gender: ", gender, " Confirmed dead: ", confirmed_dead)
 
@@ -852,6 +863,76 @@ server <- function(input, output, session) {
         update_choice_show_tables()
         update_main_table()
         output$change_names_return_message <- shiny::renderText("All individual with an individual-id found in the 'from' column have been changed to the corresponding 'to' column.")
+    })
+
+    show_individual_name_change_info <- function() {
+        if (!(input$change_one_individual_id_sep_input %in% data$meta[,"index"] ||
+            input$change_one_individual_id_sep_input %in% new_data$meta[,"index"])) {
+            output$new_name_info_index <- shiny::renderText("Enter SEP-index")
+            output$new_name_info_table <- DT::renderDataTable({})
+            output$new_name_info_map <- leaflet::renderLeaflet({})
+            return()
+        }
+
+        output$new_name_info_index <- shiny::renderText(paste0("Showing info for: ", input$change_one_individual_id_sep_input))
+        output$new_name_info_table <- DT::renderDataTable({
+            GenotypeCheck::generate_user_choice_data_frame(possible_matches = possible_matches, new_data = new_data, data = data,
+                                                           ind = input$change_one_individual_id_sep_input, include_extra_info = TRUE,
+                                                           include_individ_ids = c(input$new_individual_name_input))
+        })
+        output$new_name_info_map <- leaflet::renderLeaflet({
+
+            combined_meta <- rbind(data$meta, new_data$meta)
+            ind <- input$change_one_individual_id_sep_input
+
+            individuals <- c(combined_meta[ind, "individ"], input$new_individual_name_input)
+            ids <- data$meta[data$meta$individ %in% individuals, "index"]
+            ids <- ids[ids != ind]
+
+            coords <- as.data.frame(list(lng = combined_meta[c(ind, ids), "east"], lat = combined_meta[c(ind, ids), "north"]))
+            p1 <- sf::st_as_sf(coords, coords = c("lng", "lat"), crs = SWEREF99)
+            p2 <- sf::st_transform(p1, WGS84)
+
+            dates <- combined_meta[c(ind, ids), "date"]
+            individs <- c("CURRENT", combined_meta[ids, "individ"])
+            individs[is.na(individs)] <- "No assigned"
+            gender <- combined_meta[c(ind, ids), "gender"]
+            confirmed_dead <- combined_meta[c(ind, ids), "confirmed_dead"]
+            labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", "Date: ", dates, "<br>", "Individual: ", individs, "<br>", "Gender: ", gender, "<br>", "Confirmed dead: ", confirmed_dead)
+            labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs, " Gender: ", gender, " Confirmed dead: ", confirmed_dead)
+
+            leaflet::leaflet(p2) %>%
+                leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
+                                          options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
+                leaflet::addPopups(popup = individs, options = leaflet::popupOptions((closeButton = TRUE))) %>%
+                leaflet::addMarkers(label = labels, popup = labels_with_br)
+        })
+    }
+
+    shiny::observeEvent({input$change_one_individual_id_sep_input
+                         input$new_individual_name_input
+                         1}, {
+        show_individual_name_change_info()
+    })
+
+    shiny::observeEvent(input$perform_individual_name_change, {
+        req(input$change_one_individual_id_sep_input)
+        req(input$new_individual_name_input)
+
+        old_name <- data$meta[input$change_one_individual_id_sep_input, "individ"]
+        data$meta[input$change_one_individual_id_sep_input, "individ"] <<- input$new_individual_name_input
+
+        show_individual_name_change_info()
+        update_choice_show_tables()
+        update_main_table()
+
+        output$individual_name_change_return_message <- shiny::renderText(paste0("Individual name changed from ", old_name, " to ", input$new_individual_name_input))
+    })
+
+    shiny::observeEvent({input$main_panel
+                         input$replace_rename_panel
+                         1}, {
+        output$individual_name_change_return_message <- shiny::renderUI({})
     })
 
     shiny::observeEvent({input$export_new_from_date
