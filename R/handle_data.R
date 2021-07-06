@@ -384,6 +384,7 @@ combine_multilocus <- function(locus) {
 #' @param data A data object.
 #' @param ind The index for which the dataframe should be generated.
 #' @param include_extra_info Whether or not to include 'gender' and 'confirmed dead' columns in the export
+#' @param include_individ_ids Add extra individ ids which will be included in the dataframe
 #'
 #' @return A dataframe with a index, multilocus, distance, and individ column. All data of every individual where atleast one point was
 #' within the threshold is included in the dataframe.
@@ -394,8 +395,10 @@ combine_multilocus <- function(locus) {
 #' df <- generate_user_choice_data_frame(possible_matches = possible_matches,
 #'     new_data = new_data, data = data, ind = "SEP0159539", include_extra_info = FALSE)
 #' }
-generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind, include_extra_info) {
-    individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
+generate_user_choice_data_frame <- function(possible_matches, new_data, data, ind, include_extra_info, include_individ_ids = c()) {
+    combined_meta <- rbind(data$meta, new_data$meta)
+    ind_individual <- combined_meta[ind, "individ"]
+    individuals <- unique(c(data$meta[possible_matches[[ind]]$ids, "individ"], ind_individual, include_individ_ids))
     ids <- data$meta[data$meta$individ %in% individuals, "index"]
     ids <- unique(c(ids, possible_matches[[ind]]$ids))
     ids <- ids[ids != ind]
@@ -418,7 +421,6 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
     columns_included <- c("index", "multilocus", "locus distance", "individual")
 
     if (include_extra_info) {
-        combined_meta <- rbind(data$meta, new_data$meta)
         gender <- combined_meta[c(ind, ids), "gender"]
         confirmed_dead <- combined_meta[c(ind, ids), "confirmed_dead"]
 
