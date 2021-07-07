@@ -16,9 +16,9 @@ default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU
 locus_column_names <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
                         "MU23_1", "MU23_2", "MU50_1", "MU50_2", "MU51_1", "MU51_2", "MU59_1", "MU59_2")
 
-SWEREF99 <- sp::CRS("+init=epsg:3006")
-WGS84 <- sp::CRS("+init=epsg:4326")
-
+# EPSG codes
+SWEREF99 <- 3006
+WGS84 <- 4326
 
 ui <- shiny::fluidPage(
 
@@ -429,9 +429,9 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col, 
-            locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col, 
-            east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col, 
+        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col,
+            locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col,
+            east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col,
             confirmed_dead = input$load_data_choice_confirmed_dead_col))
 
         update_main_table()
@@ -458,8 +458,8 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet), 
-            index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col, 
+        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet),
+            index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col,
             east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col, confirmed_dead = input$load_new_data_choice_confirmed_dead_col))
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
@@ -587,19 +587,19 @@ server <- function(input, output, session) {
             ids <- ids[ids != ind]
 
             coords <- as.data.frame(list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"])))
-            p1 <- sp::SpatialPoints(coords = coords, proj4string = SWEREF99)
-            p2 <- sp::coordinates(sp::spTransform(p1, WGS84))
+            p1 <- sf::st_as_sf(coords, coords = c("lng", "lat"), crs = SWEREF99)
+            p2 <- sf::st_transform(p1, WGS84)
 
             dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
             individs <- c("CURRENT", data$meta[ids, "individ"])
             labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", " Date: ", dates, "<br>", " Individual: ", individs)
             labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs)
 
-            leaflet::leaflet() %>%
+            leaflet::leaflet(p2) %>%
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
                                           options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
-                leaflet::addPopups(lng = p2[,"lng"], lat = p2[,"lat"], popup = individs, options = leaflet::popupOptions(closeButton = TRUE)) %>%
-                leaflet::addMarkers(lng = p2[,"lng"], lat = p2[,"lat"], label = labels, popup = labels_with_br)
+                leaflet::addPopups(popup = individs, options = leaflet::popupOptions((closeButton = TRUE))) %>%
+                leaflet::addMarkers(label = labels, popup = labels_with_br)
         })
 
         output$merge_new_individ_id <- shiny::renderUI({
@@ -696,7 +696,7 @@ server <- function(input, output, session) {
 
         lapply(new_data$meta$index, function(ind) {
             if (sum(!is.na(merged_data$meta[possible_matches[[ind]]$ids, "individ"])) == 0) {
-                merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data), 
+                merged_data <<- GenotypeCheck::merge_new_data(new_data = GenotypeCheck::extract_one_index_from_batch(new_data, ind), data = merged_data, new_data_id = get_next_nrm_id(new_data, merged_data),
                     date_of_change = date_of_change)$data
             }
         })
@@ -854,8 +854,8 @@ server <- function(input, output, session) {
             } else {
                 return(shiny::tagList(
                     shiny::selectInput(inputId = "export_new_from_date", label = "Export Start: ", choices = times, selected = 1),
-                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times, selected = 1) 
-                ))     
+                    shiny::selectInput(inputId = "export_new_to_date", label = "Export End: ", choices = times, selected = 1)
+                ))
             }
         })
 
@@ -976,4 +976,5 @@ server <- function(input, output, session) {
 }
 
 shiny::shinyApp(ui = ui, server = server)
+
 
