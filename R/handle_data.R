@@ -407,7 +407,14 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 
     combined_data <- c(new_data$combined_locus_data, data$combined_locus_data)
 
-    multi <- c(combined_data[ind], combined_data[ids])
+    multi <- combined_data[c(ind, ids)]
+
+    refrence_sample <- unlist(strsplit(multi[ind], " "))
+    multi[ids] <- lapply(multi[ids], function(x) {
+        parts <- unlist(strsplit(x, " "))
+        parts[parts != refrence_sample] <- paste0('<span style="color:red;">', parts[parts != refrence_sample], '</span>')
+        paste0(parts, collapse = " ")
+    }) %>% unlist
 
     distance <- c(NA, new_data$distances[[ind]][ids])
     names(distance)[1] <- ind

@@ -571,8 +571,8 @@ server <- function(input, output, session) {
         lapply(new_data$meta$index, function(ind) {
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = DT::dataTableOutput(outputId = paste0("SHOW_", ind)))
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, FALSE)
-            })
+                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, TRUE)
+            }, escape = c(-2))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::h4(paste0("Showing Matches For: ", ind)))
             shiny::insertUI(selector = "#show_matches", where = "afterEnd", ui = shiny::tags$hr())
         })
@@ -609,7 +609,7 @@ server <- function(input, output, session) {
         output$merge_info_index <- shiny::renderText(paste0("Showing Details for: ", ind))
         output$merge_info_data_table <- DT::renderDataTable(options = list(scrollX = TRUE), rownames = FALSE, {
             GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, TRUE)
-        })
+        }, escape = c(-2))
 
         output$merge_info_map <- leaflet::renderLeaflet({
 
@@ -662,9 +662,8 @@ server <- function(input, output, session) {
     update_choice_show_tables <- function() {
         lapply(new_data$meta$index, function(ind) {
             output[[paste0("SHOW_", ind)]] <- DT::renderDataTable(options = list(scrollX = TRUE, dom = "ltip"), rownames = FALSE, {
-                df <- GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, FALSE)
-                df
-            })
+                GenotypeCheck::generate_user_choice_data_frame(possible_matches, new_data, data, ind, TRUE)
+            }, escape = c(-2))
         })
     }
 
@@ -875,11 +874,11 @@ server <- function(input, output, session) {
         }
 
         output$new_name_info_index <- shiny::renderText(paste0("Showing info for: ", input$change_one_individual_id_sep_input))
-        output$new_name_info_table <- DT::renderDataTable({
+        output$new_name_info_table <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             GenotypeCheck::generate_user_choice_data_frame(possible_matches = possible_matches, new_data = new_data, data = data,
                                                            ind = input$change_one_individual_id_sep_input, include_extra_info = TRUE,
                                                            include_individ_ids = c(input$new_individual_name_input))
-        })
+        }, escape = c(-2))
         output$new_name_info_map <- leaflet::renderLeaflet({
 
             combined_meta <- rbind(data$meta, new_data$meta)
