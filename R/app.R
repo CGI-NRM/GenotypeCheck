@@ -590,17 +590,20 @@ server <- function(input, output, session) {
 
             individuals <- unique(data$meta[possible_matches[[ind]]$ids, "individ"])
             ids <- data$meta[data$meta$individ %in% individuals, "index"]
-            # ids <- data$meta$index
+            ids <- unique(c(ids, possible_matches[[ind]]$ids))
             ids <- ids[ids != ind]
 
-            coords <- as.data.frame(list(lng = c(new_data$meta[ind, "east"], data$meta[ids, "east"]), lat = c(new_data$meta[ind, "north"], data$meta[ids, "north"])))
+            merge_meta <- rbind(data$meta, new_data$meta)
+
+            coords <- as.data.frame(list(lng = merge_meta[c(ind, ids), "east"], lat = merge_meta[c(ind, ids), "north"]))
             p1 <- sf::st_as_sf(coords, coords = c("lng", "lat"), crs = SWEREF99)
             p2 <- sf::st_transform(p1, WGS84)
 
-            dates <- c(new_data$meta[ind, "date"], data$meta[ids, "date"])
-            individs <- c("CURRENT", data$meta[ids, "individ"])
-            gender <- c(new_data$meta[ind, "gender"], data$meta[ids, "gender"])
-            confirmed_dead <- c(new_data$meta[ind, "confirmed_dead"], data$meta[ids, "confirmed_dead"])
+            dates <- merge_meta[c(ind, ids), "date"]
+            individs <- c("CURRENT", merge_meta[ids, "individ"])
+            individs[is.na(individs)] <- "No assigned"
+            gender <- merge_meta[c(ind, ids), "gender"]
+            confirmed_dead <- merge_meta[c(ind, ids), "confirmed_dead"]
             labels_with_br <- paste0("Index: ", c(ind, ids), "<br>", "Date: ", dates, "<br>", "Individual: ", individs, "<br>", "Gender: ", gender, "<br>", "Confirmed dead: ", confirmed_dead)
             labels <- paste0("Index: ", c(ind, ids), " Date: ", dates, " Individual: ", individs, " Gender: ", gender, " Confirmed dead: ", confirmed_dead)
 
