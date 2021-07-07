@@ -4,10 +4,10 @@ library(magrittr)
 # If these are set the shiny app will not allow the user to choose a dataset to load.
 # This foledr is also where the backups will be saved and cleaned up
 
-database_path <- "path/to/data/folder/"
-database_file <- "bears.db"
-# database_path <- ""
-# database_file <- ""
+#database_path <- "path/to/data/folder/"
+#database_file <- "bears.db"
+database_path <- ""
+database_file <- ""
 database_sheet <- 1
 
 default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
@@ -170,7 +170,7 @@ ui <- shiny::fluidPage(
                                             shiny::actionButton(inputId = "assign_new_ids", label = "Assign New NRM Ids To The New Samples Without Matches"),
                                             shiny::textOutput(outputId = "assign_new_ids_return_message"),
                                             shiny::tags$hr(),
-                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: "),
+                                            shiny::textInput(inputId = "show_details_for_new_data", label = "View Details For New Data: ", placeholder = "Index: SEPXXXXXXX"),
                                             shiny::tags$hr(),
                                             shiny::conditionalPanel(condition = "input.show_details_for_new_data != ''",
                                                 shiny::uiOutput(outputId = "merge_new_individ_id")
