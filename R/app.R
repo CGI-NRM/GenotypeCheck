@@ -126,7 +126,10 @@ ui <- shiny::fluidPage(
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
                                             shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man",
-                                                "Maximum Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
+                                                "Maximum Distance" = "max", "Number of mismatches" = "num", "Combine Euclidian Distance and Number of Mismatches" = "c_euc_num"), selected = "euc"),
+                                            shiny::conditionalPanel(condition = "input.distance_function == 'c_euc_num'",
+                                                shiny::numericInput(inputId = "combine_euclidean_mismatches_threshold", label = "Num Mismatches threshold: ", min = 0, value = 0)
+                                            ),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
                                             shiny::textOutput(outputId = "distances_done_message"),
                                             shiny::tags$hr(),
@@ -529,17 +532,20 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$generate_distances, {
-        distance_function <- GenotypeCheck::dist_euclidian
+        distance_function <- GenotypeCheck::dist_euclidean
         if (identical(input$distance_function, "euc")) {
-            distance_function <- GenotypeCheck::dist_euclidian
+            distance_function <- GenotypeCheck::dist_euclidean
         } else if (identical(input$distance_function, "man")) {
             distance_function <- GenotypeCheck::dist_manhattan
         } else if (identical(input$distance_function, "max")) {
             distance_function <- GenotypeCheck:dist_maximum
         } else if (identical(input$distance_function, "num")) {
             distance_function <- GenotypeCheck::dist_num_mismatches
+        } else if (identical(input$distance_function, "c_euc_num")) {
+            distance_function <- GenotypeCheck::dist_euclidean_num_mismatches
         }
-        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function)
+        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function, threshold = input$combine_euclidean_mismatches_threshold)
+        print(new_data$distances)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
 

@@ -18,7 +18,7 @@ load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0",
     } else if (endsWith(file_path, ".ods")) {
         raw_data <- readODS::read_ods(path = file_path, col_names = TRUE, na = na_strings, sheet = sheet)
     } else if (endsWith(file_path, ".db")) {
-        raw_data <- GenotypeCheck::load_data_sqlite(file_path)
+        raw_data <- load_data_sqlite(file_path)
     } else {
         raw_data <- read.table(file = file_path, header = TRUE, na.strings = na_strings, sep = ",", stringsAsFactors = FALSE)
     }
@@ -249,21 +249,22 @@ sanity_check_new_data <- function(new_data, data) {
     }
 }
 
-#' An Euclidian Distance function
+#' An euclidean Distance function
 #'
 #' @param multilocus1 A vector with the locuses of the first object to be compared.
 #' @param multilocus2 A vector with the locuses of the second object to be compared.
+#' @param threshold Unused variable
 #'
-#' @return The euclidian distance between the locuses.
+#' @return The euclidean distance between the locuses.
 #' @export
 #'
 #' @examples
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 178)
-#' dis <- dist_euclidian(l1, l2)
+#' dis <- dist_euclidean(l1, l2)
 #' }
-dist_euclidian <- function(multilocus1, multilocus2) {
+dist_euclidean <- function(multilocus1, multilocus2, threshold) {
     sqrt(sum((multilocus1 - multilocus2) ^ 2, na.rm = TRUE))
 }
 
@@ -271,6 +272,7 @@ dist_euclidian <- function(multilocus1, multilocus2) {
 #'
 #' @param multilocus1 A vector with the locuses of the first object to be compared.
 #' @param multilocus2 A vector with the locuses of the second object to be compared.
+#' @param threshold Unused variable
 #'
 #' @return The manhattan distance between the locuses.
 #' @export
@@ -279,9 +281,9 @@ dist_euclidian <- function(multilocus1, multilocus2) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 178)
-#' dis <- dist_euclidian(l1, l2)
+#' dis <- dist_euclidean(l1, l2)
 #' }
-dist_manhattan <- function(multilocus1, multilocus2) {
+dist_manhattan <- function(multilocus1, multilocus2, threshold) {
     sum(abs(multilocus1 - multilocus2), na.rm = TRUE)
 }
 
@@ -289,6 +291,7 @@ dist_manhattan <- function(multilocus1, multilocus2) {
 #'
 #' @param multilocus1 A vector with the locuses of the first object to be compared.
 #' @param multilocus2 A vector with the locuses of the second object to be compared.
+#' @param threshold Unused variable
 #'
 #' @return The distance between the specific locuses that had the maximum distance.
 #' @export
@@ -297,9 +300,9 @@ dist_manhattan <- function(multilocus1, multilocus2) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 180)
-#' dis <- dist_euclidian(l1, l2)
+#' dis <- dist_euclidean(l1, l2)
 #' }
-dist_maximum <- function(multilocus1, multilocus2) {
+dist_maximum <- function(multilocus1, multilocus2, threshold) {
     max(abs(multilocus1 - multilocus2), na.rm = TRUE)
 }
 
@@ -307,6 +310,7 @@ dist_maximum <- function(multilocus1, multilocus2) {
 #'
 #' @param multilocus1 A vector with the locuses of the first object to be compared.
 #' @param multilocus2 A vector with the locuses of the second object to be compared.
+#' @param threshold Unused variable
 #'
 #' @return The number of locuses that did not match. Missing data are counted as matches.
 #' @export
@@ -315,10 +319,33 @@ dist_maximum <- function(multilocus1, multilocus2) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 178)
-#' dis <- dist_euclidian(l1, l2)
+#' dis <- dist_euclidean(l1, l2)
 #' }
-dist_num_mismatches <- function(multilocus1, multilocus2) {
+dist_num_mismatches <- function(multilocus1, multilocus2, threshold) {
     sum(!(multilocus1 == multilocus2), na.rm = TRUE)
+}
+
+#' A distance function which uses euclidean distance, and returns the negative value if the number of mismatches is smaller than a threshold
+#'
+#' @param multilocus1 A vector with the locuses of the first object to be compared.
+#' @param multilocus2 A vector with the locuses of the second object to be compared.
+#' @param threshold The num-mismatch threshold where the distance that gets returned is negative
+#'
+#' @return The euclidean distance between locuses, negative if the number of mismatches is lower than the threshold. Missing data are counted as matches.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' l1 <- c(182, 180, 178, 176)
+#' l2 <- c(178, 180, 178, 178)
+#' dis <- dist_euclidean_num_mismatches(l1, l2, 2)
+#' }
+dist_euclidean_num_mismatches <- function(multilocus1, multilocus2, threshold) {
+    edist <- dist_euclidean(multilocus1 = multilocus1, multilocus2 = multilocus2, threshold = NULL)
+    if (dist_num_mismatches(multilocus1 = multilocus1, multilocus2 = multilocus2, threshold = NULL) <= threshold) {
+        return(-edist)
+    }
+    edist
 }
 
 #' Calculate the distances from the new data to the existing data.
@@ -326,6 +353,7 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
 #' @param new_data A new_data object.
 #' @param data A data object.
 #' @param distance_function The function to be used for the distance. "dist_" functions are given by the package.
+#' @param threshold A threshold used by some of the distance functions
 #'
 #' @return A multi-dimentional list with the distance from each of the new data to the data.
 #' @export
@@ -336,17 +364,17 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
 #' # for other functions to work.
 #'
 #' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
-#'     distance_function = dist_euclidian)
+#'     distance_function = dist_euclidean)
 #'
 #' }
-calculate_new_data_distances <- function(new_data, data, distance_function) {
+calculate_new_data_distances <- function(new_data, data, distance_function, threshold = NULL) {
 
     distances <- list()
     combined_data <- rbind(data$multilocus, new_data$multilocus)
     data_rows <- split(combined_data, seq(nrow(combined_data)))
 
     for (ndata_row in seq(nrow(new_data$multilocus))) {
-        distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row])
+        distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row], threshold)
         names(distance) <- rownames(combined_data)
         distance <- distance[names(distance) != new_data$meta$index[ndata_row]]
         distances <- append(distances, list(distance))
@@ -418,6 +446,10 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 
     distance <- c(NA, new_data$distances[[ind]][ids])
     names(distance)[1] <- ind
+
+    # The distance function which combines euclidean distance with number of mismatches returns negative distances to include those matches
+    # under the threshold. We show the values as absolute to not confuse the user with negative distances
+    distance <- distance %>% lapply(abs) %>% unlist
 
     indi <- c(NA, data$meta[ids,"individ"])
     names(indi)[1] <- ind
