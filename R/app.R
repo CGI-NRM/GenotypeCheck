@@ -43,6 +43,7 @@ ui <- shiny::fluidPage(
                             shiny::uiOutput(outputId = "load_data_button_holder")
                         ),
                         mainPanel = shiny::mainPanel(
+                            shiny::htmlOutput(outputId = "load_main_data_success_message"),
                             DT::dataTableOutput(outputId = "dataset_table")
                         )
                     )
@@ -110,6 +111,8 @@ ui <- shiny::fluidPage(
                                         ),
                                         mainPanel = shiny::mainPanel(
                                             shiny::h4(shiny::textOutput(outputId = "sanity_check")),
+                                            shiny::htmlOutput(outputId = "new_data_load_success_message"),
+                                            shiny::tags$hr(),
                                             shiny::textOutput(outputId = "sanity_message"),
                                             shiny::tags$hr(),
                                             DT::dataTableOutput(outputId = "new_data_datatable")
@@ -257,7 +260,9 @@ server <- function(input, output, session) {
     has_loaded_data <- FALSE
 
     data <- NULL
+    load_main_data_success_message <- NULL
     new_data <- NULL
+    load_new_data_success_message <- NULL
     possible_matches <- NULL
 
     output$load_data_hint <- shiny::renderText("You Need To Load The Dataset Before You Can Match New Data Against It")
@@ -283,8 +288,11 @@ server <- function(input, output, session) {
         if (!identical(database_file, "") & !is.na(database_file) & !is.null(database_file)) {
             names(default_locus_columns) <- locus_column_names
 
-            data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = default_locus_columns, individ_column = "individ",
+            load_data_return <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = paste0(database_path, database_file), sheet = database_sheet), index_column = "index", locus_columns = default_locus_columns, individ_column = "individ",
                 meta_columns = c(date = "date", north = "north", east = "east", gender = "gender", date_changed = "date_changed", confirmed_dead = "confirmed_dead"))
+
+            data <<- load_data_return$data
+            load_main_data_success_message <<- load_data_return$success_message
 
             update_main_table()
 
@@ -456,10 +464,13 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        data <<- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col,
+        load_data_return <- GenotypeCheck::load_data(GenotypeCheck::load_raw_data(file_path = input$data_file$datapath, sheet = input$load_data_sheet), index_column = input$load_data_choice_index_col,
             locus_columns = locus_columns, individ_column = input$load_data_choice_individ_col, meta_columns = c(date = input$load_data_choice_date_col, north = input$load_data_choice_north_col,
             east = input$load_data_choice_east_col, gender = input$load_data_choice_gender_col, date_changed = input$load_data_choice_date_changed_col,
             confirmed_dead = input$load_data_choice_confirmed_dead_col))
+
+        data <<- load_data_return$data
+        load_main_data_success_message <<- load_data_return$success_message
 
         update_main_table()
 
@@ -474,6 +485,8 @@ server <- function(input, output, session) {
             df <- cbind(df, data$meta[,colnames(data$meta) != "index"])
             df
         })
+
+        output$load_main_data_success_message <- shiny::renderText(load_main_data_success_message)
     }
 
     shiny::observeEvent(input$load_new_data_button, {
@@ -485,9 +498,11 @@ server <- function(input, output, session) {
 
         names(locus_columns) <- locus_column_names
 
-        new_data <<- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet),
+        new_data_return <- GenotypeCheck::create_new_data_batch(GenotypeCheck::load_raw_data(file_path = input$new_data_file$datapath, sheet = input$load_new_data_sheet),
             index_column = input$load_new_data_choice_index_col, locus_columns = locus_columns, meta_columns = c(date = input$load_new_data_choice_date_col, north = input$load_new_data_choice_north_col,
             east = input$load_new_data_choice_east_col, gender = input$load_new_data_choice_gender_col, confirmed_dead = input$load_new_data_choice_confirmed_dead_col))
+
+        new_data <<- new_data_return$data
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             df <- data.frame(multilocus = new_data$combined_locus_data)
@@ -496,6 +511,8 @@ server <- function(input, output, session) {
             df <- df[,colnames(df) != "individ" & colnames(df) != "date_changed"]
             df
         })
+
+        output$new_data_load_success_message <- shiny::renderText(new_data_return$success_message)
 
         output$load_new_data_button_holder <- shiny::renderUI({})
         output$load_data_before_match <- shiny::renderText("")
@@ -511,8 +528,10 @@ server <- function(input, output, session) {
 
         names(locus_data) <- locus_column_names
 
-        new_data <<- GenotypeCheck::create_new_data(input$load_new_index, multilocus = locus_data,
+        new_data_return <- GenotypeCheck::create_new_data(input$load_new_index, multilocus = locus_data,
             meta = c(date = as.character(input$load_new_date), north = input$load_new_north, east = input$load_new_east, gender = input$load_new_gender, confirmed_dead = input$load_new_confirmed_dead))
+
+        new_data <<- new_data_return$data
 
         output$new_data_datatable <- DT::renderDataTable(options = list(pageLength = 30, lengthMenu = c(30, 50, 100, 250), scrollX = TRUE), rownames = FALSE, filter = "top", {
             df <- data.frame(multilocus = new_data$combined_locus_data)
@@ -521,6 +540,8 @@ server <- function(input, output, session) {
             df <- df[,colnames(df) != "individ" & colnames(df) != "date_changed"]
             df
         })
+
+        output$new_data_load_success_message <- shiny::renderText(new_data_return$success_message)
 
         output$load_data_before_match <- shiny::renderText("")
         output$sanity_message <- shiny::renderText(paste(GenotypeCheck::sanity_check_new_data(new_data, data), collapse = " : "))
