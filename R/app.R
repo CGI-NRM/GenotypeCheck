@@ -113,7 +113,7 @@ ui <- shiny::fluidPage(
                                             shiny::h4(shiny::textOutput(outputId = "sanity_check")),
                                             shiny::htmlOutput(outputId = "new_data_load_success_message"),
                                             shiny::tags$hr(),
-                                            shiny::textOutput(outputId = "sanity_message"),
+                                            shiny::htmlOutput(outputId = "sanity_message"),
                                             shiny::tags$hr(),
                                             DT::dataTableOutput(outputId = "new_data_datatable")
                                         )
@@ -516,7 +516,7 @@ server <- function(input, output, session) {
 
         output$load_new_data_button_holder <- shiny::renderUI({})
         output$load_data_before_match <- shiny::renderText("")
-        output$sanity_message <- shiny::renderText(paste(GenotypeCheck::sanity_check_new_data(new_data = new_data, data = data), collapse = " :|: "))
+        output$sanity_message <- shiny::renderText(paste0("<ul>", paste(GenotypeCheck::sanity_check_new_data(new_data = new_data, data = data), collapse = ""), "</ul>"))
         output$sanity_check <- shiny::renderText("Sanity Check")
         output$distances_done_message <- shiny::renderText("")
     })
@@ -544,7 +544,7 @@ server <- function(input, output, session) {
         output$new_data_load_success_message <- shiny::renderText(new_data_return$success_message)
 
         output$load_data_before_match <- shiny::renderText("")
-        output$sanity_message <- shiny::renderText(paste(GenotypeCheck::sanity_check_new_data(new_data, data), collapse = " : "))
+        output$sanity_message <- shiny::renderText(paste0("<ul>", paste(GenotypeCheck::sanity_check_new_data(new_data = new_data, data = data), collapse = ""), "</ul>"))
         output$sanity_check <- shiny::renderText("Sanity Check")
         output$distances_done_message <- shiny::renderText("")
     })

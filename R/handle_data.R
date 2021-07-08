@@ -254,28 +254,28 @@ sanity_check_new_data <- function(new_data, data) {
         outside_range <- test_values > locus_range["max",] | test_values < locus_range["min",]
         outside_range[is.na(outside_range)] <- FALSE
         if (any(outside_range, na.rm = TRUE)) {
-            problems <- c(problems, paste(new_data$meta$index[i], "had some values outside the expected range. The problematic locuses are:", paste(names(test_values)[outside_range], collapse = ", ")))
+            problems <- c(problems, paste("<li>", new_data$meta$index[i], "had some values outside the expected range. The problematic locuses are:", paste(names(test_values)[outside_range], collapse = ", "), "</li>"))
         }
     }
 
     if (length(problems) >= 1) {
-        problems <- c("Some values are outside the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.", problems)
+        problems <- c("<h4>Some values are outside the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.</h4>", problems)
     }
 
     for (i in seq(nrow(new_data$multilocus))) {
         if (sum(is.na(new_data$multilocus[i,])) > 4) {
-            problems <- c(problems, paste(new_data$meta$index[i], "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset"))
+            problems <- c(problems, paste("<li>", new_data$meta$index[i], "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset", "</li>"))
         }
     }
 
     for (new_ind in new_data$meta$index) {
         if (new_ind %in% data$meta$index) {
-            problems <- c(problems, paste(new_ind, " already exists in the loaded data. Be aware that the program cannot handle this and it may lead to crashes and/or weird behaviour."))
+            problems <- c(problems, paste("<li>", new_ind, " already exists in the loaded data. Be aware that the program cannot handle this and it may lead to crashes and/or weird behaviour.", "</li>"))
         }
     }
 
     if (length(problems) == 0) {
-        return("No problems were found with the new data.")
+        return("<h4>No problems were found with the new data.</h4>")
     } else {
         return(problems)
     }
