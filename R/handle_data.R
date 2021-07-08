@@ -38,7 +38,7 @@ load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0",
 #' @param meta_columns A vector with the columns that contain the meta-data for each row. In the example data these are: c(date = "date",
 #' north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.
 #'
-#' @return A data object that is used in the rest of this package.
+#' @return A list containing two object. 1. Data object that is used in the rest of this package. 2. A success message which contains usefull information.
 #' @export
 #'
 #' @examples
@@ -51,14 +51,17 @@ load_raw_data <- function(file_path, sheet = 1, na_strings = c("NA", "-99", "0",
 #'     "MU23 - 1", "MU23 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1",
 #'     "G10L - 2", "MU50 - 1", "MU50 - 2")
 #
-#' data <- load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
+#' c(data, success_message) %<-% load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
 #'     locus_columns = locus_columns, individ_column = "individ", meta_columns = c(gender = "gender",
 #      date = "date", north = "north", east = "east", date_changed = "date_changed"))
 #' }
 load_data <- function(raw_data, index_column, locus_columns, individ_column = NA, meta_columns) {
 
+    success_message <- ""
+
     if (raw_data %>% dplyr::select(dplyr::all_of(index_column)) %>% duplicated() %>% sum() >= 1) {
         warning("The indexes are not a unique identifier.")
+        success_message <- success_message %>% paste0("The indexes are not a unique identifier.<br />")
     }
 
     if (is.na(individ_column)) {
@@ -75,13 +78,37 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
 
     meta_data$confirmed_dead[is.na(meta_data$confirmed_dead)] <- "No"
 
+    meta_NAs_before <- meta_data %>% apply(2, is.na)
+
+    meta_data_save <- data.frame(meta_data)
+
     meta_data$north <- as.numeric(meta_data$north)
     meta_data$east <- as.numeric(meta_data$east)
 
+    meta_NAs_after <- meta_data %>% apply(2, is.na)
+
+    if (any(meta_NAs_before != meta_NAs_after)) {
+        success_message <- success_message %>% paste0("The following meta data could not be converted into numbers: ",
+                                                      paste0(meta_data_save[meta_NAs_before != meta_NAs_after], collapse = ", "), ".<br />")
+    }
+
     rownames(meta_data) <- meta_data$index
 
-    locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns))) %>%
+    locus_data <- data.frame(raw_data %>% dplyr::select(dplyr::all_of(locus_columns)))
+    locus_data_save <- data.frame(locus_data)
+
+    locus_NAs_before <- locus_data %>% apply(2, is.na)
+
+    locus_data <- locus_data %>%
         apply(1:2, as.numeric)
+
+    locus_NAs_after <- locus_data %>% apply(2, is.na)
+
+    if (any(locus_NAs_before != locus_NAs_after)) {
+        success_message <- success_message %>% paste0("The following locus data could not be converted into numbers: ",
+                                                      paste0(locus_data_save[locus_NAs_before != locus_NAs_after], collapse = ", "), ".<br />")
+    }
+
     colnames(locus_data) <- c(names(locus_columns))
     rownames(locus_data) <- meta_data$index
     locus_data <- locus_data[,sort(colnames(locus_data))]
@@ -90,7 +117,12 @@ load_data <- function(raw_data, index_column, locus_columns, individ_column = NA
 
     data <- list(multilocus = locus_data, meta = meta_data, combined_locus_data = combined_locus_data, locus_column_names = names(locus_columns),
         meta_column_names = c("index", names(meta_columns), "individ"), multilocus_names = "index")
-    data
+
+    if (success_message == "") {
+        success_message <- "Data loaded without problems.<br />"
+    }
+
+    list("data" = data, "success_message" = success_message)
 }
 
 
@@ -222,28 +254,28 @@ sanity_check_new_data <- function(new_data, data) {
         outside_range <- test_values > locus_range["max",] | test_values < locus_range["min",]
         outside_range[is.na(outside_range)] <- FALSE
         if (any(outside_range, na.rm = TRUE)) {
-            problems <- c(problems, paste(new_data$meta$index[i], "had some values outside the expected range. The problematic locuses are:", paste(names(test_values)[outside_range], collapse = ", ")))
+            problems <- c(problems, paste("<li>", new_data$meta$index[i], "had some values outside the expected range. The problematic locuses are:", paste(names(test_values)[outside_range], collapse = ", "), "</li>"))
         }
     }
 
     if (length(problems) >= 1) {
-        problems <- c("Some values are outside the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.", problems)
+        problems <- c("<h4>Some values are outside the range of the rest of the dataset, ensure that this is inteded and that the locuses are in the correct order.</h4>", problems)
     }
 
     for (i in seq(nrow(new_data$multilocus))) {
         if (sum(is.na(new_data$multilocus[i,])) > 4) {
-            problems <- c(problems, paste(new_data$meta$index[i], "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset"))
+            problems <- c(problems, paste("<li>", new_data$meta$index[i], "There are more than 4 points of missing data, this will lead to large uncertenty when matching against the dataset", "</li>"))
         }
     }
 
     for (new_ind in new_data$meta$index) {
         if (new_ind %in% data$meta$index) {
-            problems <- c(problems, paste(new_ind, " already exists in the loaded data. Be aware that the program cannot handle this and it may lead to crashes and/or weird behaviour."))
+            problems <- c(problems, paste("<li>", new_ind, " already exists in the loaded data. Be aware that the program cannot handle this and it may lead to crashes and/or weird behaviour.", "</li>"))
         }
     }
 
     if (length(problems) == 0) {
-        return("No problems were found with the new data.")
+        return("<h4>No problems were found with the new data.</h4>")
     } else {
         return(problems)
     }
