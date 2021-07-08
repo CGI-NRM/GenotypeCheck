@@ -128,6 +128,13 @@ ui <- shiny::fluidPage(
                                             shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man",
                                                 "Maximum Distance" = "max", "Number of mismatches" = "num", "Combine Euclidian Distance and Number of Mismatches" = "c_euc_num"), selected = "euc"),
                                             shiny::conditionalPanel(condition = "input.distance_function == 'c_euc_num'",
+                                                shiny::p(paste0("This distance function is a bit special. It first calculates the euclidean distance, ",
+                                                         "and then the number of mismatches (counting missing values as matches). If the number ",
+                                                         "of mismatches is lower or equal to the threshold below the distance that gets returned ",
+                                                         "is negative. That way, when the distances gets matched later all values with less than ",
+                                                         "(or equal to) 'num mismatches threshold' will get included (since the distances will be ",
+                                                         "lower than 'distance threshold to match'). The positive euclidean distance values are shown ",
+                                                         "in the tables visible in this web-interface.")),
                                                 shiny::numericInput(inputId = "combine_euclidean_mismatches_threshold", label = "Num Mismatches threshold: ", min = 0, value = 0)
                                             ),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
