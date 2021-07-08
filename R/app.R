@@ -552,7 +552,6 @@ server <- function(input, output, session) {
             distance_function <- GenotypeCheck::dist_euclidean_num_mismatches
         }
         new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function, threshold = input$combine_euclidean_mismatches_threshold)
-        print(new_data$distances)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
 

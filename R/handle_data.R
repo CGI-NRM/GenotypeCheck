@@ -490,7 +490,8 @@ generate_user_choice_data_frame <- function(possible_matches, new_data, data, in
 #' generate_threshold_plot(new_data = new_data, data = data)
 #' }
 generate_threshold_plot <- function(new_data, data) {
-    min_dist <- min(unlist(new_data$distances))
+    # Because of the combined euclidean-num-mismatches function the distance can be negative. But the threshold cannot be lower than 0.
+    min_dist <- max(min(unlist(new_data$distances)), 0)
     max_dist <- max(unlist(lapply(new_data$meta$index, function(ind) {
         sum(sort(new_data$distances[[ind]])[1:2], na.rm = TRUE)
     })))
