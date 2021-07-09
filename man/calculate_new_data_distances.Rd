@@ -4,7 +4,12 @@
 \alias{calculate_new_data_distances}
 \title{Calculate the distances from the new data to the existing data.}
 \usage{
-calculate_new_data_distances(new_data, data, distance_function)
+calculate_new_data_distances(
+  new_data,
+  data,
+  distance_function,
+  progress_object = NULL
+)
 }
 \arguments{
 \item{new_data}{A new_data object.}
@@ -12,6 +17,8 @@ calculate_new_data_distances(new_data, data, distance_function)
 \item{data}{A data object.}
 
 \item{distance_function}{The function to be used for the distance. "dist_" functions are given by the package.}
+
+\item{progress_object}{A optional shiny progress object to show progress to user}
 }
 \value{
 A multi-dimentional list with the distance from each of the new data to the data.
@@ -26,6 +33,5 @@ Calculate the distances from the new data to the existing data.
 
 new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
     distance_function = dist_euclidian)
-
 }
 }
