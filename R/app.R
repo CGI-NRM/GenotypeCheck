@@ -560,7 +560,12 @@ server <- function(input, output, session) {
         } else if (identical(input$distance_function, "num")) {
             distance_function <- GenotypeCheck::dist_num_mismatches
         }
-        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function)
+
+        progress <- shiny::Progress$new()
+        on.exit(progress$close())
+        progress$set(message = "Calculating distances", value = 0)
+
+        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function, progress)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
 

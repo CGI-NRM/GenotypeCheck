@@ -358,6 +358,7 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
 #' @param new_data A new_data object.
 #' @param data A data object.
 #' @param distance_function The function to be used for the distance. "dist_" functions are given by the package.
+#' @param progress_object A optional shiny progress object to show progress to user
 #'
 #' @return A multi-dimentional list with the distance from each of the new data to the data.
 #' @export
@@ -369,19 +370,23 @@ dist_num_mismatches <- function(multilocus1, multilocus2) {
 #'
 #' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
 #'     distance_function = dist_euclidian)
-#'
 #' }
-calculate_new_data_distances <- function(new_data, data, distance_function) {
+calculate_new_data_distances <- function(new_data, data, distance_function, progress_object = NULL) {
 
     distances <- list()
     combined_data <- rbind(data$multilocus, new_data$multilocus)
     data_rows <- split(combined_data, seq(nrow(combined_data)))
 
-    for (ndata_row in seq(nrow(new_data$multilocus))) {
+    n <- nrow(new_data$multilocus)
+
+    for (ndata_row in seq(n)) {
         distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row])
         names(distance) <- rownames(combined_data)
         distance <- distance[names(distance) != new_data$meta$index[ndata_row]]
         distances <- append(distances, list(distance))
+        if (!is.null(progress_object)) {
+            progress_object$inc(1 / n, detail = paste0("Processing sample: ", ndata_row))
+        }
     }
 
     names(distances) <- new_data$meta$index
