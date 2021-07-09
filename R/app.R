@@ -556,7 +556,7 @@ server <- function(input, output, session) {
         } else if (identical(input$distance_function, "man")) {
             distance_function <- GenotypeCheck::dist_manhattan
         } else if (identical(input$distance_function, "max")) {
-            distance_function <- GenotypeCheck:dist_maximum
+            distance_function <- GenotypeCheck::dist_maximum
         } else if (identical(input$distance_function, "num")) {
             distance_function <- GenotypeCheck::dist_num_mismatches
         }
