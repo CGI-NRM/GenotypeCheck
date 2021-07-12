@@ -597,7 +597,9 @@ server <- function(input, output, session) {
     update_amount_texts <- function() {
         output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))),
             " new data-points that matched only one individual in the original data."))
-        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(x) == 0 }))),
+        # We have to use abs since the combined euclidean-num-mismatches distance-function will/might return negative values (which means a match in number of mismatches,
+        #                                                                                                                     and the abs(value) is the euclidean distance)
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(abs(x)) == 0 }))),
             " new data-points that matched another sample with zero distance."))
         output$number_of_new_without_id <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { sum(!is.na(data$meta[x$ids, "individ"])) == 0 }))),
             " new data-points that did not match any existing individual and needs to get an id assigned to it. Some of these are grouped together in a new individual,
@@ -715,7 +717,9 @@ server <- function(input, output, session) {
 
         date_of_change <- Sys.time()
 
-        have_zero <- unlist(lapply(new_data$distances, function(x) { sort(x)[1] == 0 }))
+        # We have to use abs since the combined euclidean-num-mismatches distance-function will/might return negative values (which means a match in number of mismatches,
+        #                                                                                                                     and the abs(value) is the euclidean distance)
+        have_zero <- unlist(lapply(new_data$distances, function(x) { sort(abs(x))[1] == 0 }))
         lapply(new_data$meta$index[have_zero], function(ind) {
             indexes <- names(new_data$distances[[ind]][new_data$distances[[ind]] == 0])
             new_individ <- data$meta[indexes, "individ"]
