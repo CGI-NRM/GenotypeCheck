@@ -129,7 +129,17 @@ ui <- shiny::fluidPage(
                                     shiny::sidebarLayout(
                                         sidebarPanel = shiny::sidebarPanel(width = 3,
                                             shiny::selectInput(inputId = "distance_function", label = "Distance Function", choices = c("Eucilidian Distance" = "euc", "Manhattan Distance" = "man",
-                                                "Maximum Distance" = "max", "Number of mismatches" = "num"), selected = "euc"),
+                                                "Maximum Distance" = "max", "Number of mismatches" = "num", "Combine Euclidian Distance and Number of Mismatches" = "c_euc_num"), selected = "euc"),
+                                            shiny::conditionalPanel(condition = "input.distance_function == 'c_euc_num'",
+                                                shiny::p(paste0("This distance function is a bit special. It first calculates the euclidean distance, ",
+                                                         "and then the number of mismatches (counting missing values as matches). If the number ",
+                                                         "of mismatches is lower or equal to the threshold below the distance that gets returned ",
+                                                         "is negative. That way, when the distances gets matched later all values with less than ",
+                                                         "(or equal to) 'num mismatches threshold' will get included (since the distances will be ",
+                                                         "lower than 'distance threshold to match'). The positive euclidean distance values are shown ",
+                                                         "in the tables visible in this web-interface.")),
+                                                shiny::numericInput(inputId = "combine_euclidean_mismatches_threshold", label = "Num Mismatches threshold: ", min = 0, value = 0)
+                                            ),
                                             shiny::actionButton(inputId = "generate_distances", label = "Generate New Data Distances"),
                                             shiny::textOutput(outputId = "distances_done_message"),
                                             shiny::tags$hr(),
@@ -550,17 +560,19 @@ server <- function(input, output, session) {
     })
 
     shiny::observeEvent(input$generate_distances, {
-        distance_function <- GenotypeCheck::dist_euclidian
+        distance_function <- GenotypeCheck::dist_euclidean
         if (identical(input$distance_function, "euc")) {
-            distance_function <- GenotypeCheck::dist_euclidian
+            distance_function <- GenotypeCheck::dist_euclidean
         } else if (identical(input$distance_function, "man")) {
             distance_function <- GenotypeCheck::dist_manhattan
         } else if (identical(input$distance_function, "max")) {
             distance_function <- GenotypeCheck::dist_maximum
         } else if (identical(input$distance_function, "num")) {
             distance_function <- GenotypeCheck::dist_num_mismatches
+        } else if (identical(input$distance_function, "c_euc_num")) {
+            distance_function <- GenotypeCheck::dist_euclidean_num_mismatches
         }
-        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function)
+        new_data$distances <<- GenotypeCheck::calculate_new_data_distances(new_data, data, distance_function, threshold = input$combine_euclidean_mismatches_threshold)
         output$distances_done_message <- shiny::renderText("Distances Calculated")
     })
 
@@ -606,7 +618,9 @@ server <- function(input, output, session) {
     update_amount_texts <- function() {
         output$number_of_one_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { length(unique(data$meta[x$ids, "individ"])) == 1 }))),
             " new data-points that matched only one individual in the original data."))
-        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(x) == 0 }))),
+        # We have to use abs since the combined euclidean-num-mismatches distance-function will/might return negative values (which means a match in number of mismatches,
+        #                                                                                                                     and the abs(value) is the euclidean distance)
+        output$number_of_zero_matches <- shiny::renderText(paste0("There are ", sum(unlist(lapply(new_data$distances, function(x) { min(abs(x)) == 0 }))),
             " new data-points that matched another sample with zero distance."))
         output$number_of_new_without_id <- shiny::renderText(paste0("There are ", sum(unlist(lapply(possible_matches, function(x) { sum(!is.na(data$meta[x$ids, "individ"])) == 0 }))),
             " new data-points that did not match any existing individual and needs to get an id assigned to it. Some of these are grouped together in a new individual,
@@ -724,7 +738,9 @@ server <- function(input, output, session) {
 
         date_of_change <- Sys.time()
 
-        have_zero <- unlist(lapply(new_data$distances, function(x) { sort(x)[1] == 0 }))
+        # We have to use abs since the combined euclidean-num-mismatches distance-function will/might return negative values (which means a match in number of mismatches,
+        #                                                                                                                     and the abs(value) is the euclidean distance)
+        have_zero <- unlist(lapply(new_data$distances, function(x) { sort(abs(x))[1] == 0 }))
         lapply(new_data$meta$index[have_zero], function(ind) {
             indexes <- names(new_data$distances[[ind]][new_data$distances[[ind]] == 0])
             new_individ <- data$meta[indexes, "individ"]

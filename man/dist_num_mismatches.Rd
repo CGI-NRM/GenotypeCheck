@@ -4,12 +4,14 @@
 \alias{dist_num_mismatches}
 \title{An Number of Non-matches Distance function}
 \usage{
-dist_num_mismatches(multilocus1, multilocus2)
+dist_num_mismatches(multilocus1, multilocus2, threshold)
 }
 \arguments{
 \item{multilocus1}{A vector with the locuses of the first object to be compared.}
 
 \item{multilocus2}{A vector with the locuses of the second object to be compared.}
+
+\item{threshold}{Unused variable}
 }
 \value{
 The number of locuses that did not match. Missing data are counted as matches.
@@ -21,6 +23,6 @@ An Number of Non-matches Distance function
 \dontrun{
 l1 <- c(182, 180, 178, 176)
 l2 <- c(178, 180, 178, 178)
-dis <- dist_euclidian(l1, l2)
+dis <- dist_euclidean(l1, l2)
 }
 }
