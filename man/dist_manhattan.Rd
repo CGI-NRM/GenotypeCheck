@@ -4,12 +4,14 @@
 \alias{dist_manhattan}
 \title{An Manhattan Distance function}
 \usage{
-dist_manhattan(multilocus1, multilocus2)
+dist_manhattan(multilocus1, multilocus2, threshold)
 }
 \arguments{
 \item{multilocus1}{A vector with the locuses of the first object to be compared.}
 
 \item{multilocus2}{A vector with the locuses of the second object to be compared.}
+
+\item{threshold}{Unused variable}
 }
 \value{
 The manhattan distance between the locuses.
@@ -21,6 +23,6 @@ An Manhattan Distance function
 \dontrun{
 l1 <- c(182, 180, 178, 176)
 l2 <- c(178, 180, 178, 178)
-dis <- dist_euclidian(l1, l2)
+dis <- dist_manhattan(l1, l2)
 }
 }

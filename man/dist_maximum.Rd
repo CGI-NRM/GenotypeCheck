@@ -4,12 +4,14 @@
 \alias{dist_maximum}
 \title{An Maximum Distance function}
 \usage{
-dist_maximum(multilocus1, multilocus2)
+dist_maximum(multilocus1, multilocus2, threshold)
 }
 \arguments{
 \item{multilocus1}{A vector with the locuses of the first object to be compared.}
 
 \item{multilocus2}{A vector with the locuses of the second object to be compared.}
+
+\item{threshold}{Unused variable}
 }
 \value{
 The distance between the specific locuses that had the maximum distance.
@@ -21,6 +23,6 @@ An Maximum Distance function
 \dontrun{
 l1 <- c(182, 180, 178, 176)
 l2 <- c(178, 180, 178, 180)
-dis <- dist_euclidian(l1, l2)
+dis <- dist_maximum(l1, l2)
 }
 }

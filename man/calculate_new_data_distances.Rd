@@ -8,7 +8,8 @@ calculate_new_data_distances(
   new_data,
   data,
   distance_function,
-  progress_object = NULL
+  progress_object = NULL,
+  treshold = NULL
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ calculate_new_data_distances(
 \item{distance_function}{The function to be used for the distance. "dist_" functions are given by the package.}
 
 \item{progress_object}{A optional shiny progress object to show progress to user}
+
+\item{threshold}{A threshold used by some of the distance functions}
 }
 \value{
 A multi-dimentional list with the distance from each of the new data to the data.
