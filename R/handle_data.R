@@ -313,7 +313,7 @@ dist_euclidean <- function(multilocus1, multilocus2, threshold) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 178)
-#' dis <- dist_euclidean(l1, l2)
+#' dis <- dist_manhattan(l1, l2)
 #' }
 dist_manhattan <- function(multilocus1, multilocus2, threshold) {
     sum(abs(multilocus1 - multilocus2), na.rm = TRUE)
@@ -332,7 +332,7 @@ dist_manhattan <- function(multilocus1, multilocus2, threshold) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 180)
-#' dis <- dist_euclidean(l1, l2)
+#' dis <- dist_maximum(l1, l2)
 #' }
 dist_maximum <- function(multilocus1, multilocus2, threshold) {
     max(abs(multilocus1 - multilocus2), na.rm = TRUE)
@@ -351,7 +351,7 @@ dist_maximum <- function(multilocus1, multilocus2, threshold) {
 #' \dontrun{
 #' l1 <- c(182, 180, 178, 176)
 #' l2 <- c(178, 180, 178, 178)
-#' dis <- dist_euclidean(l1, l2)
+#' dis <- dist_num_mismatches(l1, l2)
 #' }
 dist_num_mismatches <- function(multilocus1, multilocus2, threshold) {
     sum(!(multilocus1 == multilocus2), na.rm = TRUE)
@@ -385,6 +385,7 @@ dist_euclidean_num_mismatches <- function(multilocus1, multilocus2, threshold) {
 #' @param new_data A new_data object.
 #' @param data A data object.
 #' @param distance_function The function to be used for the distance. "dist_" functions are given by the package.
+#' @param progress_object A optional shiny progress object to show progress to user
 #' @param threshold A threshold used by some of the distance functions
 #'
 #' @return A multi-dimentional list with the distance from each of the new data to the data.
@@ -396,20 +397,23 @@ dist_euclidean_num_mismatches <- function(multilocus1, multilocus2, threshold) {
 #' # for other functions to work.
 #'
 #' new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
-#'     distance_function = dist_euclidean)
-#'
+#'     distance_function = dist_euclidian)
 #' }
-calculate_new_data_distances <- function(new_data, data, distance_function, threshold = NULL) {
-
+calculate_new_data_distances <- function(new_data, data, distance_function, progress_object = NULL, threshold = NULL) {
     distances <- list()
     combined_data <- rbind(data$multilocus, new_data$multilocus)
     data_rows <- split(combined_data, seq(nrow(combined_data)))
 
-    for (ndata_row in seq(nrow(new_data$multilocus))) {
+    n <- nrow(new_data$multilocus)
+
+    for (ndata_row in seq(n)) {
         distance <- mapply(distance_function, data_rows, split(new_data$multilocus, seq(nrow(new_data$multilocus)))[ndata_row], threshold)
         names(distance) <- rownames(combined_data)
         distance <- distance[names(distance) != new_data$meta$index[ndata_row]]
         distances <- append(distances, list(distance))
+        if (!is.null(progress_object)) {
+            progress_object$inc(1 / n, detail = paste0("Processing sample: ", ndata_row))
+        }
     }
 
     names(distances) <- new_data$meta$index

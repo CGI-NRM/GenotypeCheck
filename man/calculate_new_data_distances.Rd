@@ -8,7 +8,8 @@ calculate_new_data_distances(
   new_data,
   data,
   distance_function,
-  threshold = NULL
+  progress_object = NULL,
+  treshold = NULL
 )
 }
 \arguments{
@@ -17,6 +18,8 @@ calculate_new_data_distances(
 \item{data}{A data object.}
 
 \item{distance_function}{The function to be used for the distance. "dist_" functions are given by the package.}
+
+\item{progress_object}{A optional shiny progress object to show progress to user}
 
 \item{threshold}{A threshold used by some of the distance functions}
 }
@@ -32,7 +35,6 @@ Calculate the distances from the new data to the existing data.
 # for other functions to work.
 
 new_data$distances <- calculate_new_data_distances(new_data = new_data, data = data,
-    distance_function = dist_euclidean)
-
+    distance_function = dist_euclidian)
 }
 }

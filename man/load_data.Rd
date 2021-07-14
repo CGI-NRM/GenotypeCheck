@@ -28,7 +28,7 @@ be compared this is set to NA as the new data don't have any individual-classifi
 north = "north", east = "east", gender = "gender"). The vector's names are required to be date, north, east, and gender.}
 }
 \value{
-A data object that is used in the rest of this package.
+A list containing two object. 1. Data object that is used in the rest of this package. 2. A success message which contains usefull information.
 }
 \description{
 Load Original Dataset
@@ -41,7 +41,7 @@ locus_columns <- c("MU09_1", "MU09_2", "MU10_1", "MU10_2", "MU05_1", "MU05_2",
 names(locus_columns) <- c("MU09 - 1", "MU09 - 2", "MU10 - 1", "MU10 - 2", "MU05 - 1", "MU05 - 2",
     "MU23 - 1", "MU23 - 2", "MU51 - 1", "MU51 - 2", "MU59 - 1", "MU59 - 2", "G10L - 1",
     "G10L - 2", "MU50 - 1", "MU50 - 2")
-data <- load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
+c(data, success_message) \%<-\% load_data(load_raw_data(file_path = "./data/bear_data_all.csv"), index_column = "index",
     locus_columns = locus_columns, individ_column = "individ", meta_columns = c(gender = "gender",
 }
 }

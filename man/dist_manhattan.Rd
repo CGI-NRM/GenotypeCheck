@@ -23,6 +23,6 @@ An Manhattan Distance function
 \dontrun{
 l1 <- c(182, 180, 178, 176)
 l2 <- c(178, 180, 178, 178)
-dis <- dist_euclidean(l1, l2)
+dis <- dist_manhattan(l1, l2)
 }
 }

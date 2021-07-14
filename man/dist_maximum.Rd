@@ -23,6 +23,6 @@ An Maximum Distance function
 \dontrun{
 l1 <- c(182, 180, 178, 176)
 l2 <- c(178, 180, 178, 180)
-dis <- dist_euclidean(l1, l2)
+dis <- dist_maximum(l1, l2)
 }
 }
