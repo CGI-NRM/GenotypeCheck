@@ -9,7 +9,7 @@ calculate_new_data_distances(
   data,
   distance_function,
   progress_object = NULL,
-  treshold = NULL
+  threshold = NULL
 )
 }
 \arguments{
