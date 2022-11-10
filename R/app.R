@@ -5,9 +5,9 @@ library(magrittr)
 # This foledr is also where the backups will be saved and cleaned up
 
 #database_path <- "path/to/data/folder/"
-#database_file <- "bears.db"
+database_file <- "~/CompiledBears/bears.csv"
 database_path <- ""
-database_file <- ""
+#dat    abase_file <- ""
 database_sheet <- 1
 
 default_locus_columns <- c("G10L_1", "G10L_2", "MU05_1", "MU05_2", "MU09_1", "MU09_2", "MU10_1", "MU10_2",
@@ -676,7 +676,7 @@ server <- function(input, output, session) {
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
                                           options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
                 leaflet::addPopups(popup = individs, options = leaflet::popupOptions((closeButton = TRUE))) %>%
-                leaflet::addMarkers(label = labels, popup = labels_with_br)
+                leaflet::addCircleMarkers(label = labels, popup = labels_with_br, radius = 3)
         })
 
         output$merge_new_individ_id <- shiny::renderUI({
@@ -946,7 +946,7 @@ server <- function(input, output, session) {
                 leaflet::addProviderTiles(provider = leaflet::providers$OpenStreetMap,
                                           options = leaflet::providerTileOptions(noWrap = TRUE)) %>%
                 leaflet::addPopups(popup = individs, options = leaflet::popupOptions((closeButton = TRUE))) %>%
-                leaflet::addMarkers(label = labels, popup = labels_with_br)
+                leaflet::addCircleMarkers(label = labels, popup = labels_with_br, radius = 3)
         })
     }
 
@@ -1075,7 +1075,7 @@ server <- function(input, output, session) {
         }
 
         if (identical(file_path_to, "~/Downloads/")) {
-            ouput$save_return_message <- shiny::renderText("Saved To Downloads Folder")
+            output$save_return_message <- shiny::renderText("Saved To Downloads Folder")
         } else {
             delete_unwanted_backups()
             output$save_return_message <- shiny::renderText("Saved")
